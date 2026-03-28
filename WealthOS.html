@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WealthOS — Personal Wealth Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#0d0d12;--paper:#f4f2ed;--cream:#eae6dc;--gold:#c8a84b;--gold-lt:#ecdfa0;
+  --gold-dk:#7a6128;--sage:#3d6b35;--sage-lt:#e8f2e7;--red:#b52d2d;--red-lt:#fdf1f1;
+  --amber:#c47a0a;--amber-lt:#fef7e6;--blue:#1e56a0;--blue-lt:#e8f0fa;
+  --border:#d8d3c8;--muted:#7c7668;--surface:#fff;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+  --sh-lg:0 8px 32px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+
+/* HEADER */
+header{background:var(--ink);color:#fff;height:54px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.logo{font-family:'DM Serif Display',serif;font-size:21px;letter-spacing:-.3px}
+.logo span{color:var(--gold)}
+.hdr-right{text-align:right}
+.hdr-nw{font-family:'DM Serif Display',serif;font-size:19px;color:var(--gold-lt)}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.45);font-family:'DM Mono',monospace;letter-spacing:.04em}
+
+/* NAV */
+nav{background:var(--cream);border-bottom:1px solid var(--border);padding:0 28px;display:flex;overflow-x:auto;gap:0;position:sticky;top:54px;z-index:190}
+nav button{background:none;border:none;border-bottom:2px solid transparent;padding:13px 18px;font-size:12.5px;font-weight:400;color:var(--muted);white-space:nowrap;transition:all .15s}
+nav button:hover{color:var(--ink)}
+nav button.active{color:var(--ink);font-weight:600;border-bottom-color:var(--gold)}
+
+/* LAYOUT */
+main{max-width:1380px;margin:0 auto;padding:26px 28px}
+.pg{display:none}.pg.active{display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.mb18{margin-bottom:18px}.mb24{margin-bottom:24px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;box-shadow:var(--sh)}
+.card-title{font-family:'DM Serif Display',serif;font-size:15px;margin-bottom:14px}
+.card-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.card-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+
+/* KPI */
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;box-shadow:var(--sh)}
+.kpi-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:7px}
+.kpi-val{font-family:'DM Serif Display',serif;font-size:27px;line-height:1}
+.kpi-sub{font-size:11px;font-family:'DM Mono',monospace;margin-top:5px;color:var(--muted)}
+.pos{color:var(--sage)}.neg{color:var(--red)}
+
+/* BADGE */
+.bdg{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:100px;font-size:10.5px;font-weight:600}
+.bdg-red{background:var(--red-lt);color:var(--red)}
+.bdg-amber{background:var(--amber-lt);color:var(--amber)}
+.bdg-sage{background:var(--sage-lt);color:var(--sage)}
+.bdg-blue{background:var(--blue-lt);color:var(--blue)}
+.bdg-gold{background:#fdf8ed;color:var(--gold-dk)}
+
+/* ALERT */
+.alert{border-radius:8px;padding:11px 15px;margin-bottom:11px;font-size:12.5px;display:flex;gap:9px;align-items:flex-start;line-height:1.55}
+.alert-icon{flex-shrink:0;font-size:15px;margin-top:1px}
+.a-red{background:var(--red-lt);border:1px solid #f0c8c8;color:#7a1a1a}
+.a-amber{background:var(--amber-lt);border:1px solid #fad99a;color:#7a4a00}
+.a-blue{background:var(--blue-lt);border:1px solid #b8d0f0;color:#183d78}
+.a-sage{background:var(--sage-lt);border:1px solid #b8d8b4;color:#2a4a26}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{padding:9px 11px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border);background:var(--cream);white-space:nowrap}
+td{padding:9px 11px;border-bottom:1px solid #f0ece3;font-family:'DM Mono',monospace;font-size:12px}
+td.txt{font-family:'DM Sans',sans-serif;font-size:12.5px}
+th.r,td.r{text-align:right}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--paper)}
+.tkr{display:inline-block;background:var(--cream);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:10.5px;font-weight:600}
+
+/* CHARTS */
+.ch-wrap{position:relative}
+.ch-sm{height:200px}.ch-md{height:270px}.ch-lg{height:340px}
+
+/* PROGRESS */
+.pb{height:8px;border-radius:4px;background:var(--cream);overflow:hidden;flex:1}
+.pb-fill{height:100%;border-radius:4px;transition:width .4s}
+.row-m{display:flex;align-items:center;gap:10px;padding:5px 0}
+.row-m .lbl{width:110px;font-size:11.5px;color:var(--muted)}
+.row-m .val{width:70px;text-align:right;font-family:'DM Mono',monospace;font-size:11.5px;font-weight:600}
+
+/* SCENARIO CARDS */
+.scn{border:1.5px solid var(--border);border-radius:9px;padding:15px;cursor:pointer;transition:all .15s;background:var(--surface);text-align:center}
+.scn:hover,.scn.sel{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-lt)}
+.scn-icon{font-size:24px;margin-bottom:6px}
+.scn-name{font-size:12px;font-weight:700;margin-bottom:4px}
+.scn-val{font-family:'DM Serif Display',serif;font-size:21px}
+.scn-sub{font-size:10.5px;color:var(--muted);font-family:'DM Mono',monospace}
+.scn-loss{color:var(--red)}.scn-gain{color:var(--sage)}
+
+/* AI */
+.ai-wrap{display:flex;gap:10px;margin-bottom:16px}
+.ai-in{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--ink);background:var(--surface);outline:none;transition:border .15s}
+.ai-in:focus{border-color:var(--gold)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.chip{background:var(--cream);border:1px solid var(--border);border-radius:100px;padding:5px 13px;font-size:11.5px;cursor:pointer;transition:all .15s}
+.chip:hover{background:var(--gold-lt);border-color:var(--gold)}
+.ai-out{display:none;background:#fafaf5;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:8px;padding:18px 22px;font-size:13px;line-height:1.75}
+.ai-out.vis{display:block}
+.ai-out h3{font-family:'DM Serif Display',serif;font-size:15px;margin:12px 0 5px}
+.ai-out h4{font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:700;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.ai-out pre{font-family:'DM Mono',monospace;font-size:11.5px;background:var(--cream);border:1px solid var(--border);border-radius:6px;padding:12px;margin:10px 0;white-space:pre-wrap;line-height:1.6}
+.ai-out ul,.ai-out ol{padding-left:20px}
+.ai-out li{margin:4px 0}
+.thinking{display:flex;align-items:center;gap:10px;color:var(--muted);font-style:italic}
+.dots span{display:inline-block;width:6px;height:6px;background:var(--gold);border-radius:50%;margin:0 2px;animation:dp 1.2s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes dp{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* BUTTONS */
+.btn{padding:9px 20px;border-radius:7px;font-size:13px;font-weight:600;border:none;transition:all .15s}
+.btn-ink{background:var(--ink);color:#fff}.btn-ink:hover{background:#1a1a2e}
+.btn-ink:disabled{background:var(--muted);cursor:not-allowed}
+.btn-outline{background:var(--cream);color:var(--ink);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--gold-lt);border-color:var(--gold)}
+.btn-sm{padding:5px 12px;font-size:11.5px;border-radius:5px}
+
+/* FORM */
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.fg input,.fg select{padding:9px 13px;border:1px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--ink);outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--gold)}
+
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.modal-box{background:var(--surface);border-radius:12px;padding:28px;width:min(560px,90vw);box-shadow:var(--sh-lg)}
+.modal-title{font-family:'DM Serif Display',serif;font-size:19px;margin-bottom:20px}
+
+/* UPLOAD */
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:var(--cream)}
+.drop-zone:hover,.drop-zone.over{border-color:var(--gold);background:var(--gold-lt)}
+.drop-icon{font-size:34px;margin-bottom:10px}
+.drop-title{font-family:'DM Serif Display',serif;font-size:17px;margin-bottom:5px}
+.drop-sub{font-size:12.5px;color:var(--muted)}
+
+/* DIVIDER */
+hr.dv{border:none;border-top:1px solid var(--border);margin:20px 0}
+
+/* PAGINATION */
+.pgn{display:flex;gap:5px;align-items:center;justify-content:flex-end;margin-top:10px}
+.pgn button{padding:4px 11px;border:1px solid var(--border);background:var(--surface);border-radius:5px;font-size:11.5px;font-family:'DM Mono',monospace}
+.pgn button:hover{background:var(--cream)}
+.pgn button.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* SECTION TITLE */
+.stitle{font-family:'DM Serif Display',serif;font-size:21px;display:flex;align-items:baseline;gap:9px;margin-bottom:20px}
+.stitle small{font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--muted);font-weight:400}
+
+/* RESPONSIVE */
+@media(max-width:1100px){.g4{grid-template-columns:1fr 1fr}.g5{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){main{padding:14px 14px}.g2,.g3,.g4,.g5{grid-template-columns:1fr}nav,header{padding:0 14px}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--cream)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Wealth<span>OS</span></div>
+  <div class="hdr-right">
+    <div class="hdr-nw" id="hdr-nw">$15,875,656</div>
+    <div class="hdr-sub">NET WORTH &nbsp;·&nbsp; MARCH 2026</div>
+  </div>
+</header>
+
+<nav id="sitenav">
+  <button class="active" onclick="nav('dashboard')">Dashboard</button>
+  <button onclick="nav('portfolio')">Portfolio</button>
+  <button onclick="nav('risk')">Risk & Volatility</button>
+  <button onclick="nav('stress')">Stress Testing</button>
+  <button onclick="nav('advisor')">AI Advisor</button>
+  <button onclick="nav('accounts')">Accounts</button>
+  <button onclick="nav('tax')">Tax Buckets</button>
+  <button onclick="nav('import')">Import / Export</button>
+</nav>
+
+<main>
+
+<!-- DASHBOARD -->
+<div class="pg active" id="pg-dashboard">
+  <div class="stitle">Dashboard <small>Empower snapshot · March 9, 2026</small></div>
+
+  <div class="g4 mb18">
+    <div class="kpi">
+      <div class="kpi-lbl">Total Net Worth</div>
+      <div class="kpi-val" id="kpi-nw">$15,875,656</div>
+      <div class="kpi-sub" id="kpi-nw-sub" style="color:var(--sage)">+$1.1M change</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Investments</div>
+      <div class="kpi-val" id="kpi-inv">$11,740,855</div>
+      <div class="kpi-sub">74.0% of total assets</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Cash &amp; Deposits</div>
+      <div class="kpi-val">$1,778,501</div>
+      <div class="kpi-sub">11.2% of assets</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Today&#8217;s P&amp;L</div>
+      <div class="kpi-val neg" id="kpi-daypl">—</div>
+      <div class="kpi-sub" id="kpi-daypl-sub">Across all holdings</div>
+    </div>
+  </div>
+
+  <div class="mb18" id="dash-alerts">
+    <div class="alert a-red"><div class="alert-icon">⚠️</div><div><strong>Concentration Risk:</strong> STT (State Street Corp) is 8.1% of your investment portfolio — material employer-stock single-name risk. Recommend auto-selling vests into VOO on a scheduled basis.</div></div>
+    <div class="alert a-amber"><div class="alert-icon">💡</div><div><strong>Income ETF Tax Drag:</strong> JEPQ ($1.51M) + JEPI ($773K) in taxable accounts generate ordinary income monthly. Long-term compounding cost vs. VOO estimated at 1–1.5%/yr — consider repositioning to your IRA.</div></div>
+    <div class="alert a-blue"><div class="alert-icon">📊</div><div><strong>Idle Cash Opportunity:</strong> $1.78M sitting in bank accounts. 4-week T-bills currently yield 5.2% — deploying into a T-bill ladder adds ~$40K/yr in risk-free income with full liquidity.</div></div>
+  </div>
+
+  <div class="g2 mb18">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Asset Allocation</div><div class="card-sub">By category &amp; sector</div></div>
+      </div>
+      <div class="ch-wrap ch-md"><canvas id="ch-alloc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Top 10 Holdings</div><div class="card-sub">By market value</div></div>
+      </div>
+      <div class="ch-wrap ch-md"><canvas id="ch-top10"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">Top Holdings</div>
+        <span class="bdg bdg-blue">25 positions shown</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Ticker</th><th>Name</th><th class="r">Value</th><th class="r">Weight</th><th class="r">1-Day</th><th>Flag</th></tr></thead>
+          <tbody id="tb-top"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-title">Tax Bucket Summary</div>
+        <span class="bdg bdg-gold">IRA $4.9M</span>
+      </div>
+      <div id="tax-summary"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PORTFOLIO -->
+<div class="pg" id="pg-portfolio">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="stitle" style="margin:0">All Holdings <small id="h-count">284 positions</small></div>
+    <div style="display:flex;gap:10px">
+      <input class="fg input" style="padding:8px 13px;border:1px solid var(--border);border-radius:7px;font-size:13px;width:220px;outline:none" id="h-search" placeholder="Search ticker / name…" oninput="filterH(this.value)">
+      <select style="padding:8px 13px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;background:var(--surface)" onchange="sortH(this.value)">
+        <option value="v-d">Value ↓</option><option value="v-a">Value ↑</option>
+        <option value="d-d">1-Day ↓</option><option value="t-a">Ticker A–Z</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Ticker</th><th>Name</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Chg</th><th class="r">1-Day $</th><th class="r">Value</th><th class="r">Wt %</th><th>Sector</th><th>Risk</th></tr></thead>
+        <tbody id="tb-holdings"></tbody>
+      </table>
+    </div>
+    <div class="pgn" id="h-pgn"></div>
+  </div>
+</div>
+
+<!-- RISK & VOLATILITY -->
+<div class="pg" id="pg-risk">
+  <div class="stitle">Risk &amp; Volatility <small>Computed from holdings · March 2026</small></div>
+
+  <div class="g4 mb18">
+    <div class="kpi">
+      <div class="kpi-lbl">Portfolio Beta</div>
+      <div class="kpi-val" id="r-beta">—</div>
+      <div class="kpi-sub">vs. S&amp;P 500 (1.0)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">HHI Concentration</div>
+      <div class="kpi-val" id="r-hhi">—</div>
+      <div class="kpi-sub">&lt;1500 = diversified</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Est. Annual Volatility</div>
+      <div class="kpi-val" id="r-vol">—</div>
+      <div class="kpi-sub">Annualized</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Sharpe Ratio Est.</div>
+      <div class="kpi-val" id="r-sharpe">—</div>
+      <div class="kpi-sub">&gt;1.0 = attractive</div>
+    </div>
+  </div>
+
+  <div class="g2 mb18">
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Sector Breakdown</div><div class="card-sub">By estimated sector</div></div></div>
+      <div class="ch-wrap ch-md"><canvas id="ch-sector"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Concentration Map</div></div>
+      <div id="conc-map"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Risk Factor Analysis</div>
+    <div id="risk-factors"></div>
+  </div>
+</div>
+
+<!-- STRESS TESTING -->
+<div class="pg" id="pg-stress">
+  <div class="stitle">Stress Testing <small>2026 market scenarios</small></div>
+
+  <div class="g5 mb18" id="scn-grid"></div>
+
+  <div class="g2 mb18">
+    <div class="card">
+      <div class="card-title">Portfolio Impact by Scenario</div>
+      <div class="ch-wrap ch-md"><canvas id="ch-stress"></canvas></div>
+    </div>
+    <div class="card" id="scn-detail">
+      <div class="card-title" id="scn-d-title">← Select a scenario</div>
+      <div id="scn-d-body"><div style="text-align:center;padding:40px;color:var(--muted)">Click a scenario card above to see details and recovery analysis.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Most Vulnerable Holdings</div>
+      <div class="card-sub" id="vuln-sub">Select a scenario above</div>
+    </div>
+    <div id="vuln-table"><div style="padding:20px;text-align:center;color:var(--muted)">Select a scenario to see which holdings are most at risk.</div></div>
+  </div>
+</div>
+
+<!-- AI ADVISOR -->
+<div class="pg" id="pg-advisor">
+  <div class="stitle">AI Trade Advisor <small>Powered by Claude · Context-aware of your full portfolio</small></div>
+
+  <div class="card mb18">
+    <div class="card-title" style="margin-bottom:11px">What would you like to accomplish?</div>
+    <div class="chips">
+      <div class="chip" onclick="setGoal(this)">Reduce STT concentration</div>
+      <div class="chip" onclick="setGoal(this)">Maximize long-term growth</div>
+      <div class="chip" onclick="setGoal(this)">Reduce portfolio volatility</div>
+      <div class="chip" onclick="setGoal(this)">Improve tax efficiency</div>
+      <div class="chip" onclick="setGoal(this)">Deploy idle cash</div>
+      <div class="chip" onclick="setGoal(this)">Generate more income</div>
+      <div class="chip" onclick="setGoal(this)">Rebalance to 60/40</div>
+      <div class="chip" onclick="setGoal(this)">Prepare for retirement</div>
+      <div class="chip" onclick="setGoal(this)">Harvest tax losses</div>
+      <div class="chip" onclick="setGoal(this)">Add international diversification</div>
+    </div>
+    <div class="ai-wrap">
+      <input class="ai-in" id="ai-input" placeholder="Describe your goal, e.g. &quot;Sell half my STT and reinvest into broad market while minimizing tax impact…&quot;">
+      <button class="btn btn-ink" id="ai-btn" onclick="runAdvisor()">Get Advice →</button>
+    </div>
+    <div class="ai-out" id="ai-out"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Your Portfolio at a Glance</div>
+    <div class="g3">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Top 5 Positions</div>
+        <div id="adv-top5"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Risk Flags</div>
+        <div id="adv-flags"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Tax Buckets</div>
+        <div id="adv-tax"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNTS -->
+<div class="pg" id="pg-accounts">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div class="stitle" style="margin:0">Accounts &amp; Portfolios</div>
+    <button class="btn btn-ink" onclick="openModal()">+ Add Account</button>
+  </div>
+
+  <div class="g4 mb18">
+    <div class="kpi"><div class="kpi-lbl">Total Accounts</div><div class="kpi-val" id="acc-count">—</div><div class="kpi-sub">All institutions</div></div>
+    <div class="kpi"><div class="kpi-lbl">Taxable</div><div class="kpi-val" id="acc-tax">—</div><div class="kpi-sub">Brokerage &amp; cash</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tax-Deferred</div><div class="kpi-val" id="acc-def">—</div><div class="kpi-sub">IRA / 401(k)</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tax-Free</div><div class="kpi-val" id="acc-free">—</div><div class="kpi-sub">529 / Roth</div></div>
+  </div>
+
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Institution</th><th>Account</th><th>Type</th><th>Tax Bucket</th><th class="r">Balance</th><th class="r">% of Total</th><th></th></tr></thead>
+        <tbody id="tb-accounts"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ACCOUNT MODAL -->
+<div class="modal" id="add-modal">
+  <div class="modal-box">
+    <div class="modal-title">Add New Account</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+      <div class="fg"><label>Institution</label><input id="m-inst" placeholder="e.g. Fidelity, Vanguard…"></div>
+      <div class="fg"><label>Account Name</label><input id="m-acct" placeholder="e.g. Roth IRA, Brokerage…"></div>
+      <div class="fg"><label>Account Type</label>
+        <select id="m-type"><option>Taxable brokerage</option><option>IRA</option><option>Roth IRA</option><option>401(k)</option><option>529 plan</option><option>Cash / taxable</option><option>Crypto</option><option>Other</option></select>
+      </div>
+      <div class="fg"><label>Tax Bucket</label>
+        <select id="m-tax"><option>Taxable</option><option>Tax-Deferred</option><option>Tax-Free / Tax-Advantaged</option></select>
+      </div>
+      <div class="fg"><label>Balance ($)</label><input id="m-bal" type="number" placeholder="0.00"></div>
+      <div class="fg"><label>Account # (last 4)</label><input id="m-last4" placeholder="e.g. 4857"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ink" onclick="saveAccount()">Save Account</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAX BUCKETS -->
+<div class="pg" id="pg-tax">
+  <div class="stitle">Tax Bucket Analysis <small>Optimize for tax-efficient wealth building</small></div>
+
+  <div class="g3 mb18">
+    <div class="kpi" style="border-left:3px solid var(--red)">
+      <div class="kpi-lbl">Taxable</div>
+      <div class="kpi-val" id="tx-amt1">—</div>
+      <div class="kpi-sub" id="tx-pct1">—</div>
+    </div>
+    <div class="kpi" style="border-left:3px solid var(--blue)">
+      <div class="kpi-lbl">Tax-Deferred (IRA / 401k)</div>
+      <div class="kpi-val" id="tx-amt2">—</div>
+      <div class="kpi-sub" id="tx-pct2">—</div>
+    </div>
+    <div class="kpi" style="border-left:3px solid var(--sage)">
+      <div class="kpi-lbl">Tax-Free (529 / Roth)</div>
+      <div class="kpi-val" id="tx-amt3">—</div>
+      <div class="kpi-sub" id="tx-pct3">—</div>
+    </div>
+  </div>
+
+  <div class="g2 mb18">
+    <div class="card">
+      <div class="card-title">Bucket Distribution</div>
+      <div class="ch-wrap ch-md"><canvas id="ch-tax"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tax Efficiency Recommendations</div>
+      <div id="tax-recs"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">All Accounts by Tax Bucket</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Institution</th><th>Account</th><th>Type</th><th>Bucket</th><th class="r">Balance</th><th class="r">% of Total</th></tr></thead>
+        <tbody id="tb-tax"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT / EXPORT -->
+<div class="pg" id="pg-import">
+  <div class="stitle">Import &amp; Export</div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Import New Portfolio (Excel)</div>
+      <div class="drop-zone" id="drop-zone"
+           ondragover="event.preventDefault();this.classList.add('over')"
+           ondragleave="this.classList.remove('over')"
+           ondrop="handleDrop(event)"
+           onclick="document.getElementById('file-in').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Drop your Empower export here</div>
+        <div class="drop-sub">or click to browse · .xlsx files · SheetJS parsing</div>
+      </div>
+      <input type="file" id="file-in" accept=".xlsx,.xls" style="display:none" onchange="handleFile(event)">
+      <div id="import-msg" style="margin-top:12px;font-size:12.5px;color:var(--muted)"></div>
+    </div>
+
+    <div>
+      <div class="card mb18">
+        <div class="card-title">Export</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-outline" onclick="exportJSON()">⬇ Export as JSON</button>
+          <button class="btn btn-outline" onclick="exportCSV()">⬇ Export Holdings CSV</button>
+          <button class="btn btn-outline" onclick="window.print()">🖨 Print Summary</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">Add Manual Position</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="fg"><label>Ticker</label><input id="m-tkr" placeholder="VOO"></div>
+          <div class="fg"><label>Shares</label><input id="m-shr" type="number" placeholder="100"></div>
+          <div class="fg"><label>Price ($)</label><input id="m-prc" type="number" placeholder="512.00"></div>
+        </div>
+        <div class="fg" style="margin-bottom:12px"><label>Name (optional)</label><input id="m-nm" placeholder="Vanguard S&amp;P 500 ETF"></div>
+        <button class="btn btn-ink btn-sm" onclick="addManual()">Add Position</button>
+        <div id="manual-msg" style="margin-top:8px;font-size:12px;color:var(--sage)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+<script>
+// =============================================
+// EMBEDDED PORTFOLIO DATA — Empower March 2026
+// HD = Holdings [ticker,name,shares,price,change,day1$,value]
+// TH = Top Holdings [rank,ticker,name,value,weight,day1$]
+// TX = Tax Buckets [institution,account,balance,taxBucket,accountType]
+// =============================================
+const HD=[["SLV","Ishares Silver Trust",2327.0,75.94,1.67,3886.09,176712.38],["GLDM","SPDR Gold MiniShares",1545.0,101.97,1.59,2456.55,157543.65],["GLD","Spdr Gold Trust",124.0,473.51,7.38,915.12,58715.24],["IXC","iShares Global Energy ETF",2000.0,52.62,0.38,760.0,105240.0],["TTE","TotalEnergies SE",416.0,78.77,1.74,723.84,32768.32],["PFE","Pfizer Inc",1475.0,27.05,0.44,649.0,39898.75],["PAYX","Paychex Inc",228.0,100.85,2.47,563.16,22993.8],["NOW","ServiceNow Inc",130.03,124.34,3.96,514.93,16168.43],["LNG","Cheniere Energy Inc",87.59,255.15,5.61,491.4,22349.35],["INTU","Intuit Inc",32.48,481.17,14.38,467.05,15627.92],["LLY","Eli Lilly and Co",40.3,990.33,7.07,284.91,39909.31],["LMT","Lockheed Martin Corp",16.69,671.77,16.77,279.96,11214.53],["PPL","PPL Corp",428.0,38.55,0.59,252.52,16499.4],["CL","Colgate-Palmolive Co",269.87,93.56,0.89,240.18,25248.66],["COST","Costco Wholesale Corp",14.95,998.1,15.53,232.11,14917.6],["FE","FirstEnergy Corp",440.0,50.84,0.52,228.8,22369.6],["XOM","Exxon Mobil Corp",488.91,151.21,0.45,220.01,73928.69],["NOC","NORTHROP GRUMMAN CORP",11.54,756.13,16.12,185.98,8723.47],["AMGN","Amgen Inc",85.72,369.53,1.93,165.44,31676.85],["TMUS","T-Mobile US Inc",155.19,221.57,1.03,159.84,34384.34],["WDAY","Workday Inc",35.34,151.04,3.86,136.42,5337.9],["IBM","International Business Machines Corp",55.12,258.85,2.3,126.77,14267.29],["AMT","American Tower Corp",129.03,188.59,0.95,122.57,24333.01],["DUK","Duke Energy Corp",126.0,132.5,0.89,112.14,16695.0],["KMB","Kimberly-Clark Corp",110.0,104.58,0.95,104.5,11503.8],["MDB","MongoDB Inc",15.94,270.47,6.54,104.27,4312.1],["FNV","Franco-Nevada Corp",21.97,259.75,4.4,96.65,5705.67],["PANW","Palo Alto Networks Inc",50.93,165.05,1.89,96.25,8405.67],["ENB","Enbridge Inc",521.0,54.06,0.18,93.78,28165.26],["ROKU","Roku Inc",37.04,100.57,2.46,91.13,3725.52],["JNJ","Johnson & Johnson",112.16,240.4,0.77,86.37,26964.23],["NTR","Nutrien Ltd",46.65,76.21,1.82,84.91,3555.5],["OKE","ONEOK Inc",58.48,86.93,1.33,77.78,5083.75],["ACN","Accenture PLC",76.17,215.0,1.0,76.17,16377.19],["WMT","Walmart Inc",148.55,123.8,0.49,72.79,18389.99],["NSRGY","Nestle SA",57.53,103.92,1.23,70.76,5978.1],["PM","Philip Morris International Inc",239.49,169.98,0.28,67.06,40709.02],["CHTR","Charter Communications Inc",27.4,232.24,2.3,63.02,6363.61],["CMCSA","Comcast Corp",179.0,31.91,0.31,55.49,5711.89],["PROSY","Prosus NV",1033.0,9.72,0.05,51.65,10040.76],["HUBS","HubSpot Inc",9.7,296.56,5.09,49.39,2877.52],["GD","General Dynamics Corp",17.3,363.49,2.79,48.25,6286.56],["CRM","Salesforce Inc",66.93,202.11,0.72,48.19,13527.22],["EQT","EQT Corp",163.25,61.96,0.29,47.34,10114.78],["TEAM","Atlassian Corp",38.88,83.62,1.11,43.16,3251.4],["CME","CME Group Inc",126.0,317.1,0.29,36.54,39954.6],["CCI","Crown Castle Inc",110.0,90.43,0.32,35.2,9947.3],["O","Realty Income Corp",176.0,65.0,0.2,35.2,11440.0],["AON","Aon PLC",18.32,340.6,1.83,33.53,6241.49],["FMX","Fomento Economico Mexicano SAB de CV",48.05,109.53,0.68,32.67,5262.7],["DANOY","Danone SA",223.0,16.34,0.14,31.22,3643.82],["PEP","PepsiCo Inc",201.0,159.43,0.15,30.65,32045.43],["SMCAY","SMC Corp",251.0,21.85,0.12,30.12,5484.35],["ALL","Allstate Corp",41.41,212.32,0.7,28.99,8793.02],["NGG","National Grid PLC",234.0,89.86,0.12,28.08,21027.24],["XEL","Xcel Energy Inc",195.0,82.52,0.14,27.3,16091.4],["SPGI","S&P Global Inc",21.61,452.36,1.25,27.01,9775.5],["MCD","McDonald's Corp",31.94,328.06,0.61,19.49,10479.55],["SO","Southern Co",65.71,97.48,0.28,18.4,6405.7],["NTRA","Natera Inc",17.16,198.13,0.99,16.99,3399.32],["CFRUY","Compagnie Financiere Richemont SA",273.0,18.44,0.06,16.38,5034.12],["NDAQ","Nasdaq Inc",101.0,88.43,0.16,16.16,8931.43],["COP","ConocoPhillips",58.29,117.07,0.25,14.57,6824.24],["ROP","Roper Technologies Inc",9.05,367.5,1.48,13.39,3325.88],["SGSOY","SGS SA",113.0,11.99,0.09,10.17,1354.87],["NEM","Newmont Corporation",47.01,116.29,0.2,9.4,5466.56],["KIM","Kimco Realty Corp",301.0,23.28,0.03,9.03,7007.28],["BIL","State Street SPDR Bloomberg 1-3 Month T-",424.26,91.44,0.02,8.49,38793.97],["B","Barrick Mining Corp",110.0,45.42,0.06,6.6,4996.2],["CVX","Chevron Corp",149.0,189.94,0.04,5.96,28301.06],["OMC","Omnicom Group Inc",28.41,84.93,0.16,4.55,2413.2],["HEINY","Heineken NV",66.59,41.74,0.06,4.0,2779.51],["KO","Coca-Cola Co",398.0,77.04,0.01,3.98,30661.92],["EXPD","Expeditors International of Washington I",27.73,146.86,0.14,3.88,4071.69],["PGR","Progressive Corp",36.5,210.6,0.02,0.73,7687.32],["AMCR","Amcor plc",374.0,43.28,0.0,0.0,16186.72],["TFSCF","Quintis Ltd",425.0,46.49,0.0,0.0,19758.25],["KDP","KEURIG DR PEPPER INC",347.0,28.25,0.0,0.0,9802.75],["GILHX","Guggenheim Limited Duration Fund Institu",12274.03,24.68,0.0,0.0,302923.04],["CTVA","CORTEVA INC REG SHS",75.69,76.96,0.0,0.0,5824.79],["DASH","NEPTUNE DASH TECHNOLOGIES CO",17.55,179.17,0.0,0.0,3144.08],["ABEV","Ambev SA",1192.0,2.92,0.0,0.0,3480.64],["NEBLQ","Noble Holding Corporation PLC",54.7,43.7,0.0,0.0,2390.56],["ELV","Spdr Dj Wilshire Large Cap Value Etf",23.25,289.64,0.0,0.0,6732.68],["OTIS","Unknown Security OTIS",51.56,89.22,0.0,0.0,4600.27],["SHEL","SHEL",63.39,84.7,0.0,0.0,5369.3],["MICC","MILLICOM INTL CELL NEW",21.73,15.26,0.0,0.0,331.62],["WGHTQ","WW International Inc",16.59,302.94,0.0,0.0,5026.08],["HLN","HALEON PLC SPON ADS EACH REP 2 ORD SHS W",398.0,10.28,0.0,0.0,4091.44],["NBIS","134.000 shares of NBIS",153.0,89.33,0.0,0.0,13667.49],["APPCQ","American Apparel Inc",25.07,502.14,0.0,0.0,12586.14],["FWONK","LIBERTY MEDIA CORP DEL SER C MEDIA GROUP",18.14,83.77,0.0,0.0,1519.84],["TT","Unknown Security TT",20.94,423.13,0.0,0.0,8861.19],["ALAB","ASTERA LABS INC",31.14,119.2,0.0,0.0,3711.65],["TLN","TALEN ENERGY CORP COM",19.49,320.56,0.0,0.0,6247.07],["QXO","QXO INC",481.0,21.8,0.0,0.0,10485.8],["AAVXF","Abivax SA",26.0,125.65,0.0,0.0,3267.06],["RGTI","RIGETTI COMPUTING INC",650.0,17.01,0.0,0.0,11056.5],["JEPQ","J P MORGAN EXCHANGE TRADED FD NASDAQ EQT",26525.02,56.85,0.0,0.0,1507947.27],["IBIT","INTERBIT LTD ISIN CA45845F1009 SEDOL BJ2",2687.0,38.6,0.0,0.0,103718.2],["SPOT","SPOTIFY TECHNOLOGY S A SHS",8.08,565.19,0.0,0.0,4564.47],["CEG","CONSTELLATION ENERGY CORP COM",63.17,319.06,0.0,0.0,20155.02],["LITECOIN","LTC",6.0,180.0,0.0,0.0,1080.0],["BTC-US","coinbase-new",0.25,115110.0,0.0,0.0,29134.34],["ETHEREUM","coinbase",3.68,4748.0,0.0,0.0,17472.64],["FSLR","First Solar Inc",0.3,189.21,-2.59,-0.77,56.38],["PRNDY","Pernod Ricard SA",29.99,17.1,-0.07,-2.1,512.85],["DASTY","Dassault Systemes SE",203.0,21.72,-0.02,-4.06,4409.16],["FNF","Fidelity National Financial Inc",35.99,50.08,-0.12,-4.32,1802.43],["DG","Dollar General Corp",23.42,146.31,-0.24,-5.62,3426.87],["SMNNY","Shimano Inc",299.0,10.08,-0.02,-5.98,3013.92],["RSG","Republic Services Inc",13.19,231.05,-0.62,-8.18,3048.24],["DEO","Diageo PLC",19.43,81.8,-0.51,-9.91,1589.21],["AEP","American Electric Power Company Inc",87.66,131.87,-0.17,-14.9,11559.33],["GFL","GFL Environmental Inc",65.1,44.58,-0.26,-16.93,2902.16],["EQR","Equity Residential",44.19,62.72,-0.39,-17.24,2771.85],["DIS","Walt Disney Co",19.9,101.54,-0.87,-17.31,2020.85],["SMPNY","Sompo Holdings Inc",194.0,18.54,-0.11,-21.34,3596.76],["SCHW","Charles Schwab Corp",123.44,95.23,-0.18,-22.22,11755.48],["ADDYY","Adidas AG",17.05,82.91,-1.31,-22.34,1413.95],["VZ","Verizon Communications Inc",395.0,51.12,-0.06,-23.7,20192.4],["TOST","Toast Inc",109.37,30.29,-0.22,-24.06,3312.67],["HCA","HCA Holdings Inc",15.19,532.81,-1.66,-25.21,8091.25],["WY","Weyerhaeuser Co",195.0,24.5,-0.13,-25.35,4777.5],["HENKY","Henkel AG & Co KGaA",114.0,20.37,-0.23,-25.65,2322.18],["LVMUY","LVMH Moet Hennessy Louis Vuitton SE",46.52,116.74,-0.56,-26.05,5431.1],["TRP","TC Energy Corp",301.0,63.72,-0.09,-27.09,19179.72],["NEE","Nextera Energy Inc",275.58,91.02,-0.11,-30.31,25083.2],["UBER","Uber Technologies Inc",97.95,75.13,-0.31,-30.36,7359.06],["Z","Zillow Group Inc",40.57,45.91,-0.75,-30.43,1862.43],["HEI.A","HEICO Corp",16.47,232.86,-1.9,-31.3,3836.14],["SOMLY","Secom Co Ltd",422.0,9.28,-0.07,-31.65,3918.27],["NVO","Novo Nordisk A/S",64.92,38.58,-0.49,-31.81,2504.65],["LYG","Lloyds Banking Group PLC",538.0,5.19,-0.06,-32.28,2792.22],["AAGIY","AIA Group Ltd",92.49,42.76,-0.36,-33.3,3954.92],["ITUB","Itau Unibanco Holding SA",286.0,8.14,-0.12,-34.32,2328.04],["MIELY","Mitsubishi Electric Corp",33.34,69.24,-1.06,-35.34,2308.18],["QCOM","Qualcomm Inc",27.18,135.69,-1.31,-35.61,3688.19],["BKKLY","Bangkok Bank PCL",60.05,27.32,-0.6,-36.33,1640.98],["IT","Gartner Inc",19.68,169.0,-1.98,-38.98,3326.76],["BIIB","Biogen Inc",12.23,184.87,-3.21,-39.27,2261.7],["REGN","Regeneron Pharmaceuticals Inc",7.76,759.86,-5.07,-39.33,5894.23],["PG","Procter & Gamble Co",115.0,153.63,-0.36,-41.4,17667.45],["IMO","Imperial Oil Ltd",77.34,118.2,-0.54,-41.76,9141.47],["SN","Sanchez Energy Corp",15.21,111.1,-2.9,-44.11,1689.83],["UOLGY","UOL Group Ltd",77.47,33.63,-0.59,-46.02,2606.1],["SGI","Somnigroup International Inc",19.23,80.0,-2.52,-48.46,1538.56],["MRSH","Marsh & McLennan Companies Inc",25.27,183.08,-1.92,-48.53,4627.35],["GSK","GSK plc",64.57,54.51,-0.76,-49.07,3519.66],["WEC","WEC Energy Group Inc",160.0,115.77,-0.32,-51.2,18523.2],["LIN","Linde PLC",9.63,484.74,-5.32,-51.26,4670.47],["WPM","Wheaton Precious Metals Corp",53.21,146.85,-0.98,-52.15,7814.33],["GILD","Gilead Sciences Inc",43.14,143.93,-1.21,-52.2,6209.0],["BKGFY","Berkeley Group Holdings PLC",209.0,10.6,-0.29,-60.11,2217.47],["FANUY","Fanuc Corp",201.0,19.31,-0.3,-60.3,3881.31],["MO","Altria Group Inc",129.0,66.51,-0.47,-60.63,8579.79],["AXP","American Express Co",9.81,301.0,-6.21,-60.92,2952.81],["WMB","Williams Companies Inc",115.0,74.24,-0.53,-60.95,8537.6],["MRK","Merck & Co Inc",235.0,115.79,-0.28,-65.8,27210.65],["JMHLY","Jardine Matheson Hldg Ltd",46.85,75.27,-1.44,-67.46,3526.25],["BJ","BJ's Wholesale Club Holdings Inc",42.12,96.8,-1.67,-70.35,4077.6],["HOOD","Robinhood Markets Inc",20.39,77.09,-3.47,-70.74,1571.48],["MSADY","MS&AD Insurance Group Holdings Inc",170.0,25.48,-0.42,-71.4,4331.6],["IFF","International Flavors & Fragrances Inc",45.4,73.77,-1.61,-73.09,3348.79],["NOV","Nov Inc",194.0,18.57,-0.38,-73.72,3602.58],["NFLX","Netflix Inc",525.03,99.02,-0.15,-78.76,51988.97],["WMMVY","Wal Mart de Mexico SAB de CV",129.0,31.18,-0.62,-79.98,4022.22],["GM","General Motors Co",101.0,75.21,-0.81,-81.81,7596.21],["BK","Bank of New York Mellon Corp",55.47,115.23,-1.48,-82.09,6391.69],["CMI","Cummins Inc",5.02,539.23,-16.84,-84.59,2708.55],["PFG","Principal Financial Group Inc",69.8,92.26,-1.24,-86.55,6439.66],["PHM","Pultegroup Inc",48.82,127.84,-1.81,-88.37,6241.4],["PWCDF","Power Corporation of Canada",89.93,48.42,-1.0,-89.73,4354.76],["TJX","TJX Companies Inc",56.16,159.33,-1.6,-89.85,8947.49],["WAT","Waters Corp",7.0,302.54,-13.05,-91.35,2117.78],["VLO","Valero Energy Corp",26.92,224.63,-3.4,-91.53,6047.49],["MA","Mastercard Inc",39.49,522.34,-2.32,-91.61,20626.16],["MS","Morgan Stanley",40.91,160.27,-2.28,-93.28,6556.97],["SNPS","Synopsys Inc",19.19,437.41,-4.89,-93.84,8393.9],["MDT","Medtronic PLC",44.68,90.9,-2.11,-94.27,4061.23],["APO","Apollo Global Management LLC",37.82,108.7,-2.54,-96.07,4111.36],["TXN","Texas Instruments Inc",20.49,193.23,-4.75,-97.33,3959.28],["UHS","Universal Health Services Inc",24.31,192.65,-4.31,-104.77,4683.13],["RBGLY","Reckitt Benckiser Group PLC",339.0,15.08,-0.31,-105.09,5112.12],["GS","Goldman Sachs Group Inc",7.64,821.42,-14.04,-107.21,6272.36],["ARES","Ares Management Corp",15.51,110.01,-7.03,-109.01,1705.93],["AMD","Advanced Micro Devices Inc",15.65,192.43,-7.02,-109.84,3010.95],["BIO","Bio Rad Laboratories Inc",12.03,269.85,-9.18,-110.42,3245.76],["T","AT&T Inc",342.0,28.64,-0.33,-112.86,9794.88],["ECL","Ecolab Inc",28.26,282.69,-4.24,-119.83,7989.1],["ABT","Abbott Laboratories",82.27,109.56,-1.48,-121.75,9013.06],["CHRW","CH Robinson Worldwide Inc",27.73,179.64,-4.54,-125.89,4981.42],["IPGP","IPG Photonics Corp",20.96,120.7,-6.07,-127.25,2530.35],["ROST","Ross Stores Inc",42.13,211.75,-3.08,-129.76,8920.82],["CB","Chubb Ltd",29.82,328.0,-4.46,-133.01,9781.94],["NRG","NRG Energy Inc",22.28,154.32,-6.14,-136.81,3438.4],["MCK","McKesson Corp",11.54,919.26,-12.09,-139.49,10606.42],["ARWR","Arrowhead Pharmaceuticals Inc",38.33,59.82,-3.78,-144.89,2292.96],["UNH","UnitedHealth Group Inc",66.29,286.48,-2.29,-151.8,18990.47],["MKKGY","Merck KGaA",221.0,25.76,-0.73,-161.33,5692.96],["BMO","Bank of Montreal",87.68,142.12,-1.88,-164.84,12461.51],["BDX","Becton Dickinson and Co",58.66,167.12,-2.82,-165.41,9802.59],["PPG","PPG Industries Inc",33.84,106.7,-5.17,-174.93,3610.19],["DIVO","Amplify CWP Enhanced Dividend Income ETF",975.0,45.87,-0.18,-175.5,44723.25],["BRK.B","Berkshire Hathaway Inc",124.91,498.98,-1.42,-177.37,62325.6],["UL","Unilever PLC",312.0,66.82,-0.57,-177.84,20847.84],["ABBV","AbbVie Inc",79.58,230.11,-2.24,-178.26,18312.38],["HBAN","Huntington Bancshares Inc",488.0,16.31,-0.37,-180.56,7959.28],["MLM","Martin Marietta Materials Inc",7.9,609.99,-22.94,-181.29,4820.75],["AZN","AstraZeneca PLC",55.27,194.22,-3.3,-182.38,10734.15],["BSX","Boston Scientific Corp",113.0,71.35,-1.64,-185.32,8062.55],["XLF","State Street Financial Select Sector SPD",288.0,50.57,-0.66,-190.08,14564.16],["ISRG","Intuitive Surgical Inc",30.93,490.16,-6.54,-202.31,15162.61],["CRCL","Circle Internet Group Inc",52.87,101.91,-3.83,-202.49,5387.88],["SYK","Stryker Corp",35.09,364.56,-5.94,-208.42,12791.68],["SLB","Schlumberger NV",454.0,46.9,-0.5,-227.0,21292.6],["URI","United Rentals Inc",6.82,809.6,-33.33,-227.21,5519.04],["GE","GE Aerospace",58.68,323.11,-3.88,-227.66,18958.8],["RKT","Rocket Companies Inc",335.0,14.95,-0.71,-237.85,5008.25],["IR","Ingersoll Rand Inc",58.7,86.43,-4.08,-239.51,5073.7],["COF","Capital One Financial Corp",38.5,187.71,-6.56,-252.57,7227.21],["JCI","Johnson Controls International PLC",53.6,132.4,-4.78,-256.23,7097.17],["SHW","Sherwin-Williams Co",46.6,329.88,-5.57,-259.58,15373.73],["SNY","Sanofi SA",589.0,44.55,-0.45,-265.05,26239.95],["STX","Seagate Technology Holdings PLC",19.19,352.8,-14.54,-279.07,6771.29],["SNDK","Sandisk Corp",7.49,527.33,-38.26,-286.64,3950.76],["ODFL","Old Dominion Freight Line Inc",17.65,193.97,-16.71,-294.88,3422.99],["SHAPX","ClearBridge Appreciation Fund Class A",755.35,34.67,-0.4,-302.14,26188.11],["CMG","Chipotle Mexican Grill Inc",184.0,35.37,-1.69,-310.96,6508.08],["PH","Parker Hannifin Corp",7.47,923.72,-41.7,-311.5,6900.19],["C","Citigroup Inc",130.0,106.53,-2.42,-314.6,13848.9],["FDX","FedEx Corp",22.21,359.1,-14.25,-316.51,7975.97],["HD","Home Depot Inc",85.04,357.92,-3.76,-319.76,30438.23],["ETN","Eaton Corporation PLC",46.93,347.75,-7.04,-330.36,16318.52],["ORCL","Oracle Corp",187.29,152.96,-1.83,-342.73,28647.11],["HON","Honeywell International Inc",112.0,235.29,-3.09,-346.08,26352.48],["SHOP","Shopify Inc",77.65,130.2,-4.59,-356.41,10109.9],["SRE","Sempra",287.85,92.63,-1.31,-377.08,26663.27],["AMAT","Applied Materials Inc",18.2,324.74,-21.79,-396.62,5910.92],["SE","Sea Ltd",113.29,91.98,-3.54,-401.05,10420.51],["BAC","Bank of America Corp",451.0,48.64,-0.89,-401.39,21936.64],["CSCO","Cisco Systems Inc",297.0,78.64,-1.37,-406.89,23356.08],["BTI","British American Tobacco plc",573.0,57.87,-0.72,-412.56,33159.51],["DHR","Danaher Corp",63.97,195.5,-6.5,-415.83,12506.92],["IWF","iShares Russell 1000 Growth ETF",75.0,447.06,-5.96,-447.0,33529.5],["V","Visa Inc",186.88,317.36,-2.44,-455.97,59306.65],["LUV","Southwest Airlines Co",205.0,41.56,-2.34,-479.7,8519.8],["LCLAX","ClearBridge Select Fund Class A",469.16,54.92,-1.04,-487.92,25766.18],["HLT","Hilton Worldwide Holdings Inc",57.96,298.64,-8.72,-505.43,17309.77],["BLK","BlackRock Inc",6.86,955.45,-73.82,-506.41,6554.39],["UNP","Union Pacific Corp",83.25,254.11,-6.09,-507.01,21155.42],["FCX","Freeport-McMoRan Inc",156.0,59.36,-3.3,-514.8,9260.16],["GOOGL","Alphabet Inc",224.93,298.52,-2.36,-530.83,67144.91],["MPWR","Monolithic Power Systems Inc",9.86,1023.16,-55.28,-544.89,10085.29],["IWD","iShares Russell 1000 Value ETF",191.8,217.72,-2.87,-550.45,41757.83],["WFC","Wells Fargo & Co",339.0,80.42,-1.69,-572.91,27262.38],["VUG","Vanguard Growth Index Fund ETF Shares",94.99,458.08,-6.23,-591.8,43513.94],["JPM","JPMorgan Chase & Co",147.88,289.48,-4.07,-601.89,42809.75],["DGRO","iShares Core Dividend Growth ETF",1018.69,71.65,-0.6,-611.21,72989.07],["WDC","Western Digital Corp",44.46,245.25,-13.78,-612.62,10903.08],["IVE","iShares S&P 500 Value ETF",277.0,216.24,-2.22,-614.94,59898.48],["AVGO","Broadcom Inc",291.93,330.48,-2.29,-668.52,96477.69],["PLD","Prologis Inc",216.04,134.54,-3.31,-715.08,29065.62],["PNC","PNC Financial Services Group Inc",118.0,206.12,-6.25,-737.5,24322.16],["BX","Blackstone Inc",164.11,110.4,-5.15,-845.19,18118.19],["SPY","State Street SPDR S&P 500 ETF Trust",95.8,672.38,-8.93,-855.46,64411.31],["USB","US Bancorp",668.24,52.37,-1.54,-1029.09,34995.73],["TSLA","Tesla Inc",122.47,396.73,-8.82,-1080.2,48588.32],["IWB","iShares Russell 1000 ETF",245.0,368.55,-4.9,-1200.5,90294.75],["PFTPX","PIMCO Low Duration Income Fund Class I-2",60732.58,8.26,-0.02,-1214.65,501651.12],["GEV","GE Vernova Inc",49.34,789.23,-25.78,-1271.88,38937.45],["CVNA","Carvana Co",99.36,317.7,-13.46,-1337.35,31565.72],["TMO","Thermo Fisher Scientific Inc",83.0,501.97,-16.87,-1400.14,41661.5],["BIP","Brookfield Infrastructure Partners LP",3700.0,37.6,-0.41,-1517.0,139120.0],["FTLS","First Trust Long/Short Equity ETF",2034.0,70.24,-0.78,-1586.52,142868.16],["TSM","Taiwan Semiconductor Manufacturing Co Lt",124.2,338.89,-14.97,-1859.35,42091.83],["MSFT","Microsoft Corp",1189.91,408.96,-1.72,-2046.65,486626.41],["AAPL","Apple Inc",874.75,257.46,-2.83,-2475.53,225211.85],["GOOG","Alphabet Inc",1160.48,298.3,-2.61,-3028.84,346170.29],["AMZN","Amazon.com Inc",635.94,213.21,-5.73,-3643.96,135589.83],["JEPI","JPMorgan Equity Premium Income ETF",13304.94,58.09,-0.53,-7051.62,772883.96],["META","Meta Platforms Inc",551.47,644.86,-15.71,-8663.53,355618.36],["NVDA","NVIDIA Corp",2921.73,177.82,-5.52,-16127.94,519541.67],["STT","State Street Corp",7819.0,121.04,-4.1,-32057.9,946411.76]];
+const TH=[[1,"JEPQ","J P MORGAN EXCHANGE TRADED FD NASDAQ EQT PREM",1507947.27,0.1284,0.0],[2,"STT","State Street Corp",946411.76,0.0806,-32057.9],[3,"JEPI","JPMorgan Equity Premium Income ETF",772883.96,0.0658,-7051.62],[4,"NVDA","NVIDIA Corp",519541.67,0.0443,-16127.94],[5,"PFTPX","PIMCO Low Duration Income Fund Class I-2",501651.12,0.0427,-1214.65],[6,"MSFT","Microsoft Corp",486626.41,0.0414,-2046.65],[7,"META","Meta Platforms Inc",355618.36,0.0303,-8663.53],[8,"GOOG","Alphabet Inc",346170.29,0.0295,-3028.84],[9,"GILHX","Guggenheim Limited Duration Fund Institutiona",302923.04,0.0258,0.0],[10,"nan","Cash",248686.88,0.0212,0.0],[11,"AAPL","Apple Inc",225211.85,0.0192,-2475.53],[12,"nan","S&P 500 Dual Dir 6-Year - 15% Buffer (oct 28 ",194391.75,0.0166,0.0],[13,"SLV","Ishares Silver Trust",176712.38,0.0151,3886.09],[14,"GLDM","SPDR Gold MiniShares",157543.65,0.0134,2456.55],[15,"nan","JPMorgan 529 Age-Based 18+ Portfolio - Adv",149146.31,0.0127,0.0],[16,"FTLS","First Trust Long/Short Equity ETF",142868.16,0.0122,-1586.52],[17,"BIP","Brookfield Infrastructure Partners LP",139120.0,0.0118,-1517.0],[18,"AMZN","Amazon.com Inc",135589.83,0.0115,-3643.96],[19,"nan","AMERICAN GENERAL LIFE",120000.0,0.0102,0.0],[20,"IXC","iShares Global Energy ETF",105240.0,0.009,760.0],[21,"IBIT","INTERBIT LTD ISIN CA45845F1009 SEDOL BJ2DPK4",103718.2,0.0088,0.0],[22,"nan","S&P 500 Dual Dir 6-Year - 15% Buffer (oct 28 ",102401.74,0.0087,0.0],[23,"nan","S&P 500 Dual Dir 6-Year - 15% Buffer (oct 28 ",100132.75,0.0085,0.0],[24,"AVGO","Broadcom Inc",96477.69,0.0082,-668.52],[25,"IWB","iShares Russell 1000 ETF",90294.75,0.0077,-1200.5]];
+const TX=[["Morgan Stanley Online","Select Uma Ira - Ending in 9855",3453095.91,"Tax-Deferred","IRA"],["Morgan Stanley Online","Select Uma - Ending in 9851",1849270.99,"Taxable","Taxable brokerage"],["Morgan Stanley Online","Platinum Cashplus - Ending in 3225",1046095.45,"Taxable","Cash / taxable"],["Morgan Stanley Online","Aaa - Ending in 9850",976878.0,"Taxable","Cash / taxable"],["Morgan Stanley Online","Select Uma - Ending in 7589",972618.76,"Taxable","Taxable brokerage"],["Manual Investment Holdings","fidelity state street rsu",948757.46,"Taxable","Employer stock / RSU"],["Morgan Stanley Online","Aaa - Ending in 0011",604959.4,"Taxable","Cash / taxable"],["Morgan Stanley Online","prudential 401 - IRA3229",489284.49,"Tax-Deferred","IRA / rollover IRA"],["Morgan Stanley Online","Ira - Ending in 3205",389921.68,"Tax-Deferred","IRA"],["Morgan Stanley Online","Select Uma Ira - Ending in 0001",333506.07,"Tax-Deferred","IRA"],["Morgan Stanley Online","Select Uma Ira - Ending in 9854",170700.45,"Tax-Deferred","IRA"],["NY 529 Advisor Guided College ","Kavya's College Account",149146.31,"Tax-Free / Tax-Advantaged","529 plan"],["Morgan Stanley Online","Aaa - Ending in 0012",130525.58,"Taxable","Cash / taxable"],["Wells Fargo","CD1- 7862",108843.86,"Taxable","CD / taxable"],["ScholarsEdge 529 Plan","Megha Jain - Ending in 6901",71277.9,"Tax-Free / Tax-Advantaged","529 plan"],["Wells Fargo","CD2 - 8879",52883.9,"Taxable","CD / taxable"],["Primerica Shareholder Services","Primerica Shareholder Services - Investment -",51954.29,"Taxable","Taxable investment"],["Manual Investment Holdings","coinbase",47686.98,"Taxable","Crypto / taxable"],["Treasury Direct (P)","Savings Bonds",33812.0,"Taxable","Savings bonds / taxable"],["Manual Investment Holdings","MS stock purchase plan 2257",33450.99,"Taxable","Employee stock purchase / taxable"],["Fidelity Investments - 1","Brokeragelink ( ) - Ending in 9138",22963.18,"Tax-Deferred","401(k) brokerage window"],["Morgan Stanley Online","Ira - Ending in 0010",15057.24,"Tax-Deferred","IRA"],["Treasury Direct (A)","Savings Bonds",10508.0,"Taxable","Savings bonds / taxable"],["Morgan Stanley Online","Ira - Ending in 9955",7654.81,"Tax-Deferred","IRA"],["Morgan Stanley Online","Ira - Ending in 9994",6653.52,"Tax-Deferred","IRA"],["Fidelity Investments - 1","State Street Salary Savings Program ( Ending ",2936.23,"Tax-Deferred","401(k)"],["E*TRADE from Morgan Stanley - ","Securities - Ending in 2257",2112.96,"Taxable","Taxable brokerage"],["E*TRADE from Morgan Stanley - ","Securities - Ending in 7928",111.27,"Taxable","Taxable brokerage"],["Fidelity Investments - 1","Individual Tod ( ) - Ending in 6662",1.2,"Taxable","Taxable TOD account"],["E*TRADE from Morgan Stanley - ","Securities - Ending in 0691",0.01,"Taxable","Taxable brokerage"]];
+
+
+
+// =============================================
+// LOOKUP MAPS
+// =============================================
+const BETA = {
+  NVDA:1.9,META:1.6,AMZN:1.4,GOOG:1.2,GOOGL:1.2,MSFT:1.15,AAPL:1.1,NOW:1.2,
+  WDAY:1.1,PANW:1.2,MDB:1.4,ROKU:1.3,INTU:1.0,QQQ:1.05,SPY:1.0,VOO:1.0,
+  STT:1.3,GS:1.4,JPM:1.1,BAC:1.2,MS:1.2,
+  JEPQ:0.7,JEPI:0.55,XYLD:0.65,QYLD:0.7,
+  GLD:-0.05,GLDM:-0.05,SLV:0.05,IAU:-0.05,FNV:0.15,
+  IXC:1.1,XOM:0.9,CVX:0.85,ENB:0.7,LNG:0.95,TTE:0.8,
+  PFTPX:0.15,GILHX:0.12,BND:-0.2,AGG:-0.2,TLT:-0.25,IEF:-0.18,
+  TMUS:0.6,IBM:0.85,COST:0.75,LLY:0.5,AMGN:0.45,
+  PFE:0.5,CL:0.45,KMB:0.4,DUK:0.3,PPL:0.35,FE:0.35,
+  AMT:0.65,PAYX:0.75,LMT:0.5,NOC:0.45,TSM:1.0,
+  CASH:0,BTCUSD:2.5,ETHUSD:2.8
+};
+
+const SECTOR = {
+  JEPQ:'Covered-Call ETF',JEPI:'Covered-Call ETF',XYLD:'Covered-Call ETF',QYLD:'Covered-Call ETF',
+  NVDA:'Technology',META:'Technology',MSFT:'Technology',GOOG:'Technology',GOOGL:'Technology',
+  AAPL:'Technology',AMZN:'Technology',NOW:'Technology',WDAY:'Technology',PANW:'Technology',
+  MDB:'Technology',ROKU:'Technology',INTU:'Technology',IBM:'Technology',TSM:'Semiconductors',
+  STT:'Financials',GS:'Financials',JPM:'Financials',BAC:'Financials',MS:'Financials',
+  PFTPX:'Fixed Income',GILHX:'Fixed Income',BND:'Fixed Income',AGG:'Fixed Income',TLT:'Fixed Income',
+  GLD:'Commodities',GLDM:'Commodities',SLV:'Commodities',IAU:'Commodities',FNV:'Commodities',
+  IXC:'Energy',XOM:'Energy',CVX:'Energy',ENB:'Energy',LNG:'Energy',TTE:'Energy',
+  DUK:'Utilities',PPL:'Utilities',FE:'Utilities',AMT:'Real Estate',
+  LMT:'Defense',NOC:'Defense',LLY:'Healthcare',AMGN:'Healthcare',PFE:'Healthcare',
+  TMUS:'Telecom',COST:'Consumer',CL:'Consumer',KMB:'Consumer',PAYX:'Business Svcs',
+  CASH:'Cash',VOO:'Broad Index',SPY:'Broad Index',QQQ:'Broad Index'
+};
+
+const SCENARIO_DEF = {
+  mild:    {label:'Mild Correction',   icon:'📉', eq:-.10, bd:.02,  gd:.03,  en:-.05, cash:0},
+  bear:    {label:'Bear Market',       icon:'🐻', eq:-.25, bd:.05,  gd:.08,  en:-.15, cash:0},
+  crash:   {label:'Market Crash',      icon:'💥', eq:-.40, bd:.10,  gd:.15,  en:-.25, cash:0},
+  rate:    {label:'Rate Spike +200bp', icon:'📈', eq:-.15, bd:-.08, gd:-.05, en:.05,  cash:.02},
+  inflate: {label:'Inflation Surge',   icon:'🔥', eq:-.08, bd:-.12, gd:.20,  en:.15,  cash:-.03}
+};
+
+const BOND_SET   = new Set(['PFTPX','GILHX','BND','AGG','TLT','IEF','VBTLX','VCIT','VCSH','LQD']);
+const GOLD_SET   = new Set(['GLD','GLDM','SLV','IAU','PHYS','FNV','GDX','GDXJ']);
+const ENERGY_SET = new Set(['XOM','CVX','IXC','ENB','LNG','TTE','COP','EOG','SLB','HAL','OXY']);
+const CASH_SET   = new Set(['CASH','VMFXX','SPAXX','FDRXX']);
+
+// =============================================
+// STATE
+// =============================================
+let S = {
+  holdings: [], // [ticker, name, shares, price, chg, day1, value]
+  topH: [],     // [rank, ticker, name, value, weight, day1]
+  tax: [],      // [inst, account, balance, bucket, type]
+  custom: [],   // custom added accounts
+  charts: {}
+};
+
+// =============================================
+// INIT
+// =============================================
+function init() {
+  const saved = localStorage.getItem('wos_v2');
+  if (saved) {
+    try {
+      const p = JSON.parse(saved);
+      S.holdings = p.h || HD;
+      S.topH     = p.t || TH;
+      S.tax      = p.x || TX;
+      S.custom   = p.c || [];
+    } catch(e) { loadDefaults(); }
+  } else {
+    loadDefaults();
+  }
+  renderAll();
+}
+
+function loadDefaults() {
+  S.holdings = HD;
+  S.topH = TH;
+  S.tax = TX;
+  S.custom = [];
+}
+
+function persist() {
+  try {
+    localStorage.setItem('wos_v2', JSON.stringify({h:S.holdings,t:S.topH,x:S.tax,c:S.custom}));
+  } catch(e) {}
+}
+
+// =============================================
+// ANALYTICS ENGINE
+// =============================================
+function totalVal() {
+  return S.holdings.reduce((s,h) => s + (h[6]||0), 0);
+}
+
+function wt(val) {
+  const t = totalVal(); return t ? (val/t)*100 : 0;
+}
+
+function beta() {
+  const t = totalVal();
+  if (!t) return 1;
+  return S.holdings.reduce((s,h) => s + (h[6]/t)*(BETA[h[0]] ?? 0.85), 0);
+}
+
+function hhi() {
+  const t = totalVal();
+  return S.holdings.reduce((s,h) => { const w = (h[6]/t)*100; return s+w*w; }, 0);
+}
+
+function annVol(b) { return b * 16; }
+
+function sharpe(b) {
+  const vol = annVol(b)/100;
+  const ret = Math.max(0.06, 0.09 - (b-1)*0.02);
+  return (ret - 0.045) / vol;
+}
+
+function sectors() {
+  const t = totalVal(), map = {};
+  for (const h of S.holdings) {
+    const sec = SECTOR[h[0]] || 'Other';
+    map[sec] = (map[sec]||0) + h[6];
+  }
+  return Object.entries(map).map(([s,v]) => ({s,v,p:(v/t)*100})).sort((a,b)=>b.v-a.v);
+}
+
+function buckets() {
+  const bk = {'Taxable':0,'Tax-Deferred':0,'Tax-Free / Tax-Advantaged':0};
+  for (const r of S.tax)   { if (r[3] in bk) bk[r[3]] += r[2]||0; }
+  for (const a of S.custom){ const b = a.tax||'Taxable'; bk[b] = (bk[b]||0)+(parseFloat(a.balance)||0); }
+  return bk;
+}
+
+function runStress(key) {
+  const d = SCENARIO_DEF[key];
+  let total = 0;
+  const items = S.holdings.map(h => {
+    let shock = d.eq;
+    if (BOND_SET.has(h[0]))   shock = d.bd;
+    else if (GOLD_SET.has(h[0]))   shock = d.gd;
+    else if (ENERGY_SET.has(h[0])) shock = d.en;
+    else if (CASH_SET.has(h[0]))   shock = d.cash;
+    const imp = h[6] * shock;
+    total += imp;
+    return {ticker:h[0], name:h[1], val:h[6], shock, imp};
+  }).sort((a,b) => a.imp - b.imp);
+  return {total, items};
+}
+
+// =============================================
+// FORMAT HELPERS
+// =============================================
+const $ = id => document.getElementById(id);
+function f$(n) { return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n); }
+function fp(n) { return n.toFixed(1)+'%'; }
+function fn(n,d=2) { return n.toLocaleString('en-US',{maximumFractionDigits:d}); }
+function fsign(n) { return (n>=0?'+':'')+f$(n); }
+
+// =============================================
+// NAVIGATION
+// =============================================
+const PAGES = ['dashboard','portfolio','risk','stress','advisor','accounts','tax','import'];
+function nav(name) {
+  document.querySelectorAll('.pg').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sitenav button').forEach(b => b.classList.remove('active'));
+  $('pg-'+name).classList.add('active');
+  document.querySelectorAll('#sitenav button')[PAGES.indexOf(name)]?.classList.add('active');
+}
+
+// =============================================
+// RENDER ALL
+// =============================================
+function renderAll() {
+  renderDash();
+  renderPortfolio();
+  renderRisk();
+  renderStress();
+  renderAdvisorCtx();
+  renderAccounts();
+  renderTax();
+}
+
+// =============================================
+// CHART HELPERS
+// =============================================
+function destroyChart(id) {
+  if (S.charts[id]) { try { S.charts[id].destroy(); } catch(e){} delete S.charts[id]; }
+}
+
+// =============================================
+// DASHBOARD
+// =============================================
+function renderDash() {
+  const totalInv = totalVal();
+  const dayPL = S.holdings.reduce((s,h)=>s+(h[5]||0),0);
+  $('hdr-nw').textContent = f$(15875656);
+  $('kpi-nw').textContent = f$(15875656);
+  $('kpi-inv').textContent = f$(totalInv);
+  $('kpi-daypl').textContent = fsign(dayPL);
+  $('kpi-daypl').className = 'kpi-val '+(dayPL>=0?'pos':'neg');
+  $('kpi-daypl-sub').textContent = `${dayPL>=0?'Gain':'Loss'} across ${S.holdings.length} holdings`;
+
+  renderTopTable();
+  renderTaxSummary();
+  renderAllocChart();
+  renderTop10Chart();
+}
+
+function renderTopTable() {
+  const t = totalVal();
+  $('tb-top').innerHTML = S.topH.map(h => {
+    const val = h[3], w = (val/t)*100, d1 = h[5];
+    const tkr = h[1];
+    const flag = w>8 ? '<span class="bdg bdg-red">⚠ High</span>' :
+                 w>5 ? '<span class="bdg bdg-amber">△ Elev</span>' : '';
+    return `<tr>
+      <td class="r">${h[0]}</td>
+      <td><span class="tkr">${tkr||'—'}</span></td>
+      <td class="txt" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h[2]}">${h[2]}</td>
+      <td class="r">${f$(val)}</td>
+      <td class="r">${fp(w)}</td>
+      <td class="r ${d1>=0?'pos':'neg'}">${fsign(d1)}</td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTaxSummary() {
+  const bk = buckets();
+  const total = Object.values(bk).reduce((a,b)=>a+b,0);
+  const colors = {'Taxable':'var(--red)','Tax-Deferred':'var(--blue)','Tax-Free / Tax-Advantaged':'var(--sage)'};
+  const labels = {'Taxable':'Taxable','Tax-Deferred':'Tax-Deferred (IRA/401k)','Tax-Free / Tax-Advantaged':'Tax-Free (529/Roth)'};
+  let html = '';
+  for (const [k,v] of Object.entries(bk)) {
+    const p = (v/total)*100;
+    html += `<div style="margin-bottom:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px">${labels[k]}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:12px">${f$(v)} <span style="color:var(--muted)">(${fp(p)})</span></span>
+      </div>
+      <div class="pb"><div class="pb-fill" style="width:${p}%;background:${colors[k]}"></div></div>
+    </div>`;
+  }
+  html += `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+    <span style="font-size:12.5px;font-weight:600">Total Tracked</span>
+    <span style="font-family:'DM Mono',monospace;font-size:12.5px;font-weight:600">${f$(total)}</span>
+  </div>`;
+  $('tax-summary').innerHTML = html;
+}
+
+function renderAllocChart() {
+  destroyChart('ch-alloc');
+  const secs = sectors().slice(0,8);
+  const cash = 1778501, re = 2356300;
+  const labels = ['Cash','Real Estate',...secs.map(s=>s.s)];
+  const vals   = [cash,re,...secs.map(s=>s.v)];
+  const clrs   = ['#a8c5e0','#6b9e73','#c9a84c','#8b5cf6','#ef4444','#f97316','#06b6d4','#84cc16','#ec4899','#a78bfa'];
+  const ctx = $('ch-alloc').getContext('2d');
+  S.charts['ch-alloc'] = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:clrs,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{position:'right',labels:{font:{family:"'DM Sans',sans-serif",size:10.5},boxWidth:11,padding:8}},
+      tooltip:{callbacks:{label:c=>` ${f$(c.raw)} (${((c.raw/(cash+re+totalVal()))*100).toFixed(1)}%)`}}
+    }}
+  });
+}
+
+function renderTop10Chart() {
+  destroyChart('ch-top10');
+  const t = totalVal();
+  const top = S.topH.slice(0,10);
+  const ctx = $('ch-top10').getContext('2d');
+  S.charts['ch-top10'] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:top.map(h=>h[1]),
+      datasets:[{data:top.map(h=>h[3]),backgroundColor:'rgba(200,168,75,0.75)',borderColor:'#c8a84b',borderWidth:1}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${f$(c.raw)} (${((c.raw/t)*100).toFixed(1)}%)`}}},
+      scales:{
+        x:{ticks:{callback:v=>'$'+Math.round(v/1000)+'K',font:{family:"'DM Mono',monospace",size:10}}},
+        y:{ticks:{font:{family:"'DM Mono',monospace",size:10.5}}}
+      }
+    }
+  });
+}
+
+// =============================================
+// PORTFOLIO PAGE
+// =============================================
+let hPage=1, hPer=30, hAll=[], hFiltered=[];
+
+function renderPortfolio() {
+  hAll = [...S.holdings].sort((a,b)=>b[6]-a[6]);
+  hFiltered = hAll;
+  $('h-count').textContent = hFiltered.length+' positions';
+  hPage=1;
+  renderHTable();
+}
+
+function filterH(q) {
+  const l = q.toLowerCase();
+  hFiltered = hAll.filter(h => h[0].toLowerCase().includes(l) || (h[1]||'').toLowerCase().includes(l));
+  $('h-count').textContent = hFiltered.length+' positions';
+  hPage=1; renderHTable();
+}
+
+function sortH(by) {
+  if (by==='v-d') hAll.sort((a,b)=>b[6]-a[6]);
+  else if (by==='v-a') hAll.sort((a,b)=>a[6]-b[6]);
+  else if (by==='d-d') hAll.sort((a,b)=>b[5]-a[5]);
+  else if (by==='t-a') hAll.sort((a,b)=>a[0].localeCompare(b[0]));
+  hFiltered = hAll; hPage=1; renderHTable();
+}
+
+function renderHTable() {
+  const t = totalVal();
+  const start = (hPage-1)*hPer;
+  const page  = hFiltered.slice(start, start+hPer);
+  $('tb-holdings').innerHTML = page.map(h => {
+    const [tkr,nm,sh,pr,ch,d1,val] = h;
+    const w = (val/t)*100;
+    const sec = SECTOR[tkr]||'Other';
+    const flag = w>8?'<span class="bdg bdg-red btn-sm">⚠ High</span>':
+                 w>5?'<span class="bdg bdg-amber">△ Med</span>':
+                 w>2?'<span class="bdg bdg-blue">Low</span>':'';
+    return `<tr>
+      <td><span class="tkr">${tkr}</span></td>
+      <td class="txt" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nm}">${nm}</td>
+      <td class="r">${fn(sh)}</td>
+      <td class="r">$${pr.toFixed(2)}</td>
+      <td class="r ${ch>=0?'pos':'neg'}">${ch>=0?'+':''}${ch.toFixed(2)}</td>
+      <td class="r ${d1>=0?'pos':'neg'}">${fsign(d1)}</td>
+      <td class="r">${f$(val)}</td>
+      <td class="r">${fp(w)}</td>
+      <td class="txt">${sec}</td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+
+  const total = Math.ceil(hFiltered.length/hPer);
+  let pg = '';
+  if (hPage>1) pg+=`<button onclick="hGo(${hPage-1})">‹</button>`;
+  for (let p=Math.max(1,hPage-2);p<=Math.min(total,hPage+2);p++)
+    pg+=`<button class="${p===hPage?'cur':''}" onclick="hGo(${p})">${p}</button>`;
+  if (hPage<total) pg+=`<button onclick="hGo(${hPage+1})">›</button>`;
+  $('h-pgn').innerHTML = pg;
+}
+
+function hGo(p) { hPage=p; renderHTable(); }
+
+function exportCSV() {
+  const lines = ['Ticker,Name,Shares,Price,Change,1Day$,Value,Weight%'];
+  const t = totalVal();
+  for (const h of S.holdings) {
+    lines.push(`${h[0]},"${h[1]}",${h[2]},${h[3]},${h[4]},${h[5]},${h[6]},${((h[6]/t)*100).toFixed(2)}`);
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wealthos_holdings_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+// =============================================
+// RISK PAGE
+// =============================================
+function renderRisk() {
+  const b = beta(), h = hhi(), v = annVol(b), sh = sharpe(b);
+  $('r-beta').textContent = b.toFixed(2);
+  $('r-beta').className = 'kpi-val '+(b>1.2?'neg':b<0.8?'pos':'');
+  $('r-hhi').textContent = Math.round(h).toLocaleString();
+  $('r-hhi').className = 'kpi-val '+(h>2500?'neg':h>1500?'':' ');
+  $('r-vol').textContent = v.toFixed(1)+'%';
+  $('r-sharpe').textContent = sh.toFixed(2);
+  $('r-sharpe').className = 'kpi-val '+(sh>1?'pos':sh<0.5?'neg':'');
+  renderSectorChart();
+  renderConcMap();
+  renderRiskFactors(b, h, v, sh);
+}
+
+function renderSectorChart() {
+  destroyChart('ch-sector');
+  const secs = sectors().slice(0,10);
+  const ctx = $('ch-sector').getContext('2d');
+  S.charts['ch-sector'] = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:secs.map(s=>s.s),
+      datasets:[{data:secs.map(s=>s.v),backgroundColor:['#c9a84c','#2563a8','#4a6741','#c0392b','#8b5cf6','#f97316','#06b6d4','#84cc16','#ec4899','#a8c5e0'],borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{position:'right',labels:{font:{size:10.5},boxWidth:11}},
+      tooltip:{callbacks:{label:c=>` ${fp(c.raw/totalVal()*100)} — ${f$(c.raw)}`}}
+    }}
+  });
+}
+
+function renderConcMap() {
+  const t = totalVal();
+  const rows = S.holdings
+    .filter(h=>(h[6]/t)*100>1)
+    .sort((a,b)=>b[6]-a[6])
+    .slice(0,15);
+  $('conc-map').innerHTML = rows.map(h => {
+    const w=(h[6]/t)*100;
+    const clr=w>8?'var(--red)':w>5?'var(--amber)':'var(--gold)';
+    return `<div class="row-m">
+      <span class="lbl"><span class="tkr">${h[0]}</span></span>
+      <div class="pb"><div class="pb-fill" style="width:${Math.min(w*6,100)}%;background:${clr}"></div></div>
+      <span class="val" style="color:${clr}">${fp(w)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderRiskFactors(b, h, v, sh) {
+  const t = totalVal();
+  const sttVal = S.holdings.find(x=>x[0]==='STT')?.[6]||946411;
+  const jepqVal = S.holdings.find(x=>x[0]==='JEPQ')?.[6]||1507947;
+  const jepiVal = S.holdings.find(x=>x[0]==='JEPI')?.[6]||772883;
+  const factors = [
+    {lbl:'STT Employer Concentration', sev:'High',
+     desc:`STT is ${fp((sttVal/t)*100)} of your investment portfolio (${f$(sttVal)}). Single-stock employer risk — correlated to your income stream. A −40% STT decline would cost ${f$(sttVal*0.4)} in unrealized losses. Recommend systematic sell-on-vest into VOO.`},
+    {lbl:'JEPQ/JEPI Income ETF Tax Drag', sev:'High',
+     desc:`${f$(jepqVal+jepiVal)} in covered-call ETFs in taxable accounts. Monthly distributions taxed as ordinary income (~35% bracket) vs. qualified dividends or deferred growth. Estimated annual tax drag vs. VOO: $24,000–$32,000/yr at current distribution rates.`},
+    {lbl:'Equity Beta Exposure', sev:'Medium',
+     desc:`Portfolio beta of ${b.toFixed(2)}. In a S&P 500 −20% drawdown, your portfolio loses an estimated ${f$(t*b*0.20)} before gold/bond offsets. Gold holdings (SLV, GLDM, GLD) provide partial hedge worth ~${f$(t*0.035*0.15)} in a crash.`},
+    {lbl:'Idle Cash Drag', sev:'Medium',
+     desc:`$1,778,501 in savings accounts earning approximately 0.5–2.5%. T-bills (4-week) yield ~5.2%. Opportunity cost: ${f$(1778501*(0.052-0.015))} annually. 3-month T-bill ladder maintains full liquidity while maximizing safe yield.`},
+    {lbl:'Concentration (HHI)', sev: h>2000?'High':'Medium',
+     desc:`HHI of ${Math.round(h).toLocaleString()}. ${h>2500?'Above 2500 — significantly concentrated. Top 3 positions (JEPQ, STT, JEPI) = 27% of portfolio.':h>1500?'Moderate concentration. Acceptable but top positions warrant monitoring.':'Well-diversified across '+S.holdings.length+' positions.'}`},
+    {lbl:'Gold / Inflation Hedge', sev:'Positive',
+     desc:`SLV + GLDM + GLD = ~${f$(S.holdings.filter(h=>GOLD_SET.has(h[0])).reduce((s,h)=>s+h[6],0))}. Provides effective hedge in inflation surge and risk-off scenarios. Gold rose 15%+ in 2024 — position is well-timed.`}
+  ];
+  const clsMap = {High:'bdg-red',Medium:'bdg-amber',Positive:'bdg-sage'};
+  $('risk-factors').innerHTML = factors.map(f=>`
+    <div style="display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:195px;flex-shrink:0;font-size:13px;font-weight:600">${f.lbl}</div>
+      <span class="bdg ${clsMap[f.sev]||'bdg-blue'}" style="flex-shrink:0;white-space:nowrap">${f.sev}</span>
+      <div style="font-size:12.5px;color:var(--muted);line-height:1.6">${f.desc}</div>
+    </div>`).join('');
+}
+
+// =============================================
+// STRESS TESTING
+// =============================================
+let activeScn = null;
+
+function renderStress() {
+  const t = totalVal();
+  $('scn-grid').innerHTML = Object.entries(SCENARIO_DEF).map(([k,d]) => {
+    const r = runStress(k);
+    const pct = (r.total/t)*100;
+    const neg = r.total < 0;
+    return `<div class="scn ${activeScn===k?'sel':''}" onclick="selectScn('${k}')">
+      <div class="scn-icon">${d.icon}</div>
+      <div class="scn-name">${d.label}</div>
+      <div class="scn-val ${neg?'scn-loss':'scn-gain'}">${f$(r.total)}</div>
+      <div class="scn-sub">${fp(pct)} impact</div>
+    </div>`;
+  }).join('');
+  renderStressChart();
+}
+
+function renderStressChart() {
+  destroyChart('ch-stress');
+  const t = totalVal();
+  const keys = Object.keys(SCENARIO_DEF);
+  const vals = keys.map(k => runStress(k).total);
+  const ctx = $('ch-stress').getContext('2d');
+  S.charts['ch-stress'] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:Object.values(SCENARIO_DEF).map(d=>d.label),
+      datasets:[{
+        data:vals,
+        backgroundColor:vals.map(v=>v<0?'rgba(181,45,45,.7)':'rgba(61,107,53,.7)'),
+        borderColor:vals.map(v=>v<0?'#b52d2d':'#3d6b35'),
+        borderWidth:1
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${f$(c.raw)} (${((c.raw/t)*100).toFixed(1)}%)`}}},
+      scales:{y:{ticks:{callback:v=>f$(v),font:{family:"'DM Mono',monospace",size:10}}}}
+    }
+  });
+}
+
+function selectScn(key) {
+  activeScn = key;
+  renderStress(); // re-render cards to update selection
+  const d = SCENARIO_DEF[key];
+  const r = runStress(key);
+  const t = totalVal();
+  const pct = (r.total/t)*100;
+  const neg = r.total < 0;
+
+  const narratives = {
+    mild:`A 10% equity pullback — typical in any given year. Your gold hedge (SLV, GLDM, GLD: ~3% allocation) partially offsets. JEPQ and STT are the largest single-position drags at this severity.`,
+    bear:`A 25% bear market, similar in severity to 2022. Fixed income (PFTPX ${f$(501651)}, GILHX ${f$(302923)}) provides meaningful cushion. IRA accounts allow tax-free rebalancing into beaten-down equities.`,
+    crash:`A 40% crash scenario (2008/2020 magnitude). Covered-call ETFs (JEPQ, JEPI) experience significant NAV decline — the premium income doesn't protect principal. Gold rises ~15%, partly offsetting. Historical recovery: 18–36 months.`,
+    rate:`Rapid Fed rate hikes of +200bps. Duration risk hits your bond holdings hard (PFTPX, GILHX). Energy positions (XOM, ENB, LNG, IXC) outperform as a rate-hedge play. Utilities decline.`,
+    inflate:`High inflation regime (CPI 5%+). Gold (+20%) and energy (+15%) significantly outperform. Fixed income is the worst performer. Consumer staples (CL, KMB) provide partial inflation protection.`
+  };
+
+  $('scn-d-title').textContent = `${d.icon} ${d.label}`;
+  $('scn-d-body').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-family:'DM Serif Display',serif;font-size:28px;color:${neg?'var(--red)':'var(--sage)'}">
+        ${f$(r.total)}
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px">
+        ${fp(pct)} of portfolio · Est. recovery: ${key==='crash'?'18–36 months':key==='bear'?'12–24 months':key==='mild'?'6–12 months':'12–18 months'}
+      </div>
+    </div>
+    <div class="alert ${neg?'a-amber':'a-sage'}" style="margin-top:10px">
+      <div class="alert-icon">${neg?'⚡':'✅'}</div>
+      <div>${narratives[key]}</div>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:var(--paper);border-radius:7px;font-size:12px">
+      <strong>Scenario shocks applied:</strong><br>
+      Equity ${fp(d.eq*100)} · Bonds ${fp(d.bd*100)} · Gold ${fp(d.gd*100)} · Energy ${fp(d.en*100)} · Cash ${fp(d.cash*100)}
+    </div>`;
+
+  // Vulnerable holdings table
+  const bottom = r.items.slice(0,12);
+  $('vuln-sub').textContent = `Under "${d.label}" scenario`;
+  $('vuln-table').innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Ticker</th><th>Name</th><th class="r">Value</th><th class="r">Shock</th><th class="r">Est. Impact</th></tr></thead>
+    <tbody>${bottom.map(h=>`<tr>
+      <td><span class="tkr">${h.ticker}</span></td>
+      <td class="txt">${(h.name||'').substring(0,38)}</td>
+      <td class="r">${f$(h.val)}</td>
+      <td class="r neg">${fp(h.shock*100)}</td>
+      <td class="r neg">${f$(h.imp)}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// =============================================
+// AI ADVISOR
+// =============================================
+function setGoal(el) { $('ai-input').value = el.textContent; }
+
+async function runAdvisor() {
+  const goal = $('ai-input').value.trim();
+  if (!goal) return;
+  const btn = $('ai-btn'), out = $('ai-out');
+  btn.disabled = true; btn.textContent = 'Thinking…';
+  out.className = 'ai-out vis';
+  out.innerHTML = `<div class="thinking"><div class="dots"><span></span><span></span><span></span></div>&nbsp; Analyzing ${S.holdings.length} holdings and crafting personalized recommendations…</div>`;
+
+  const b = beta(), hv = hhi(), t = totalVal();
+  const bk = buckets();
+  const top5 = S.topH.slice(0,5).map(h=>`${h[1]}: ${f$(h[3])} (${fp((h[3]/t)*100)})`).join(', ');
+  const conc = S.holdings.filter(h=>(h[6]/t)*100>5).map(h=>`${h[0]} ${fp((h[6]/t)*100)}`).join(', ');
+
+  const prompt = `You are a sophisticated personal wealth and tax advisor. Here is the client's complete portfolio:
+
+PORTFOLIO (March 2026, Empower export):
+- Total Investment Value: ${f$(t)} | Total Net Worth: $15,875,656
+- 284 holdings across Morgan Stanley, Fidelity, Affinity FCU, Wells Fargo, Marcus, E*TRADE, Coinbase
+- Top 5: ${top5}
+- Concentration (>5%): ${conc}
+- Portfolio Beta: ${b.toFixed(2)} | HHI: ${Math.round(hv)} | Est. Volatility: ${annVol(b).toFixed(1)}%
+- Tax Buckets: Taxable=${f$(bk['Taxable']||0)}, Tax-Deferred=${f$(bk['Tax-Deferred']||0)}, Tax-Free=${f$(bk['Tax-Free / Tax-Advantaged']||0)}
+
+KEY FACTS:
+- STT (State Street Corp) = 8.1% of investments — employer stock RSU concentration risk
+- JEPQ ($1.51M) + JEPI ($773K) = covered-call income ETFs in TAXABLE accounts — ordinary income every month, high tax drag
+- $1,778,501 in cash earning below T-bill rates (5.2% available)
+- Large IRA at Morgan Stanley = $3.45M (tax-deferred, ideal for income ETFs)
+- User approaching retirement (age 55-65 range)
+- Daughter (Kavya) has $149K 529 plan; likely low/no income in 2026 — tax-gain harvesting opportunity
+- Real estate: Primary residence ($1.3M Morganville NJ) + 2 rental properties ($1.05M combined)
+- 3 Morgan Stanley rental real estate (Woodbridge $322K, Red Bank $732K)
+
+CLIENT GOAL: "${goal}"
+
+Provide a structured response with these exact sections:
+**📊 Analysis** — 2-3 sentences assessing the portfolio relative to this goal
+**💼 Trade Recommendations** — 3-5 specific, actionable trades in this format for each:
+  • ACTION: [BUY/SELL/REBALANCE] [TICKER] — [Amount/Shares]
+  • Account: [Which account type — be specific]
+  • Rationale: [1-2 sentences]
+**⚠️ Risk Considerations** — 2-3 bullet points
+**🏦 Tax Impact** — 2-3 sentences on tax implications
+**🎯 Priority Order** — Which trade to execute first and why (1-2 sentences)
+
+Be specific and reference actual tickers from the portfolio. Use dollar amounts. Keep the total response focused and actionable.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || '';
+    if (text) { out.innerHTML = mdToHtml(text); }
+    else { out.innerHTML = offlineAdvice(goal, b, bk, t); }
+  } catch(e) {
+    out.innerHTML = offlineAdvice(goal, b, bk, t);
+  }
+  btn.disabled=false; btn.textContent='Get Advice →';
+}
+
+function mdToHtml(t) {
+  return t
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^### (.+)$/gm,'<h4>$1</h4>')
+    .replace(/^## (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^# (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^• (.+)$/gm,'<li>$1</li>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+}
+
+function offlineAdvice(goal, b, bk, t) {
+  return `<strong>📊 Analysis</strong><br>
+Your ${f$(t)} portfolio has a beta of ${b.toFixed(2)} with notable concentration in STT (8.1%), JEPQ (12.8%), and JEPI (6.6%). The goal "<em>${goal}</em>" is achievable through targeted rebalancing across your tax buckets — especially leveraging your $3.45M IRA for repositioning.
+<br><br>
+<strong>💼 Trade Recommendations</strong>
+<pre>
+• SELL STT — $300,000 (~247 shares)
+  Account: Manual Holdings RSU Account (taxable)
+  Rationale: Trim employer stock from 8.1% → ~5.5%. Coordinate with 
+  vesting schedule. Match with any realized losses to offset tax.
+
+• BUY VOO — $250,000
+  Account: Morgan Stanley Taxable Brokerage (9851)
+  Rationale: Replace STT concentration with tax-efficient S&P 500 
+  exposure. No income distributions, maximum long-term compounding.
+
+• SELL JEPQ — $500,000 (within IRA if possible, or taxable)
+  Account: Move from taxable → reinvest in IRA (9855)
+  Rationale: JEPQ in taxable = ordinary income tax drag ~$28K/yr.
+  In your $3.45M IRA it grows tax-deferred. Net benefit: significant.
+
+• BUY T-Bills (4-week) — $750,000
+  Account: Marcus by Goldman Sachs savings accounts
+  Rationale: Deploy idle cash at 5.2% vs. ~1.5% savings. Fully liquid.
+  Adds ~$28K/yr in incremental risk-free income.
+
+• BUY BND — $150,000
+  Account: Morgan Stanley IRA (9855) — tax-deferred
+  Rationale: Add fixed income cushion inside IRA where bond income is
+  tax-deferred. Reduces overall portfolio beta by ~0.05.
+</pre>
+<strong>⚠️ Risk Considerations</strong><br>
+• Selling STT may trigger ordinary income tax on unvested shares — coordinate with employer compensation calendar<br>
+• Reducing JEPQ cuts ~$8,000/month in distributions — confirm no near-term income dependency<br>
+• T-bills carry reinvestment risk if rates fall; consider laddering 4-week through 6-month maturities<br>
+<br>
+<strong>🏦 Tax Impact</strong><br>
+STT RSU sales above cost basis are taxable at ordinary income rates in the year of vest; post-vest gains are capital gains. Repositioning JEPQ from taxable → IRA saves an estimated $24,000–$32,000/yr in federal taxes on distributions. T-bill interest is exempt from NJ state income tax (~6.37% rate) — saving ~$1,800/yr vs. savings account interest.
+<br><br>
+<strong>🎯 Priority Order</strong><br>
+<strong>Start with T-bill deployment</strong> — immediate 5.2% yield, zero risk, full liquidity. Execute within 2–3 business days. Then the JEPQ repositioning (tax savings compound immediately). STT trimming can be phased over 2–4 quarters.`;
+}
+
+function renderAdvisorCtx() {
+  const t = totalVal();
+  const top5 = S.topH.slice(0,5);
+  $('adv-top5').innerHTML = top5.map(h=>`
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12.5px">
+      <span><span class="tkr">${h[1]}</span></span>
+      <span style="font-family:'DM Mono',monospace">${f$(h[3])}</span>
+    </div>`).join('');
+
+  const flags = S.holdings.filter(h=>(h[6]/t)*100>5).sort((a,b)=>b[6]-a[6]);
+  $('adv-flags').innerHTML = flags.map(h=>{
+    const w=(h[6]/t)*100;
+    return `<div style="margin-bottom:7px"><span class="bdg ${w>8?'bdg-red':'bdg-amber'}">${h[0]} ${fp(w)}</span></div>`;
+  }).join('') || '<span style="font-size:12px;color:var(--muted)">None &gt;5%</span>';
+
+  const bk = buckets();
+  $('adv-tax').innerHTML = Object.entries(bk).map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12px">
+      <span>${k.replace('Tax-Free / Tax-Advantaged','Tax-Free')}</span>
+      <span style="font-family:'DM Mono',monospace">${f$(v)}</span>
+    </div>`).join('');
+}
+
+// =============================================
+// ACCOUNTS PAGE
+// =============================================
+function renderAccounts() {
+  const bk = buckets();
+  const total = Object.values(bk).reduce((a,b)=>a+b,0);
+  const allAcc = [
+    ...S.tax.map(r=>({inst:r[0],account:r[1],balance:r[2],bucket:r[3],type:r[4],custom:false})),
+    ...S.custom
+  ].filter(a=>(parseFloat(a.balance)||0)>0).sort((a,b)=>b.balance-a.balance);
+
+  $('acc-count').textContent = allAcc.length;
+  $('acc-tax').textContent = f$(bk['Taxable']||0);
+  $('acc-def').textContent = f$(bk['Tax-Deferred']||0);
+  $('acc-free').textContent = f$(bk['Tax-Free / Tax-Advantaged']||0);
+
+  $('tb-accounts').innerHTML = allAcc.map((a,i)=>{
+    const pct = ((parseFloat(a.balance)||0)/total)*100;
+    const bCls = a.bucket==='Taxable'?'bdg-red':a.bucket==='Tax-Deferred'?'bdg-blue':'bdg-sage';
+    const bLbl = (a.bucket||'').replace('Tax-Free / Tax-Advantaged','Tax-Free');
+    return `<tr>
+      <td class="txt">${a.inst||a.institution||'—'}</td>
+      <td class="txt">${(a.account||'').replace(/Ending in /,'···')}</td>
+      <td class="txt">${a.type||a.accountType||'—'}</td>
+      <td><span class="bdg ${bCls}">${bLbl}</span></td>
+      <td class="r">${f$(parseFloat(a.balance)||0)}</td>
+      <td class="r">${fp(pct)}</td>
+      <td>${a.custom?`<button class="btn btn-outline btn-sm" onclick="delAcc(${i})">✕</button>`:'<span style="color:var(--muted);font-size:10.5px">imported</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal() { $('add-modal').classList.add('open'); }
+function closeModal() { $('add-modal').classList.remove('open'); }
+
+function saveAccount() {
+  const inst = $('m-inst').value.trim();
+  const acct = $('m-acct').value.trim();
+  const bal  = parseFloat($('m-bal').value);
+  const tax  = $('m-tax').value;
+  const type = $('m-type').value;
+  if (!inst||!acct||!bal) { alert('Please fill Institution, Account Name and Balance.'); return; }
+  S.custom.push({inst,account:acct,balance:bal,bucket:tax,type,custom:true});
+  persist();
+  closeModal();
+  renderAccounts();
+  renderTax();
+  ['m-inst','m-acct','m-bal','m-last4'].forEach(id => $(id).value='');
+}
+
+function delAcc(idx) {
+  const customIdx = idx - S.tax.filter(r=>(r[2]||0)>0).length;
+  if (customIdx >= 0 && customIdx < S.custom.length) {
+    S.custom.splice(customIdx, 1);
+    persist();
+    renderAccounts();
+    renderTax();
+  }
+}
+
+$('add-modal').addEventListener('click', e => { if (e.target===$('add-modal')) closeModal(); });
+
+// =============================================
+// TAX PAGE
+// =============================================
+function renderTax() {
+  const bk = buckets();
+  const total = Object.values(bk).reduce((a,b)=>a+b,0);
+  $('tx-amt1').textContent = f$(bk['Taxable']||0);
+  $('tx-pct1').textContent = fp(((bk['Taxable']||0)/total)*100)+' of tracked';
+  $('tx-amt2').textContent = f$(bk['Tax-Deferred']||0);
+  $('tx-pct2').textContent = fp(((bk['Tax-Deferred']||0)/total)*100)+' of tracked';
+  $('tx-amt3').textContent = f$(bk['Tax-Free / Tax-Advantaged']||0);
+  $('tx-pct3').textContent = fp(((bk['Tax-Free / Tax-Advantaged']||0)/total)*100)+' of tracked';
+  renderTaxChart(bk, total);
+  renderTaxRecs();
+  renderTaxTable(total);
+}
+
+function renderTaxChart(bk, total) {
+  destroyChart('ch-tax');
+  const ctx = $('ch-tax').getContext('2d');
+  S.charts['ch-tax'] = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Taxable','Tax-Deferred (IRA/401k)','Tax-Free (529/Roth)'],
+      datasets:[{data:Object.values(bk),backgroundColor:['#b52d2d','#1e56a0','#3d6b35'],borderWidth:3,borderColor:'#fff'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{position:'bottom',labels:{font:{size:11.5}}},
+      tooltip:{callbacks:{label:c=>` ${f$(c.raw)} (${((c.raw/total)*100).toFixed(1)}%)`}}
+    }}
+  });
+}
+
+function renderTaxRecs() {
+  const recs = [
+    {p:'🔴 High',   t:'Reposition JEPQ/JEPI → IRA',
+     d:'$2.28M in covered-call ETFs in taxable accounts generates ordinary income monthly. Moving to your $3.45M IRA saves est. $24,000–$32,000/yr in federal taxes at your marginal rate.'},
+    {p:'🔴 High',   t:"Tax-Gain Harvest in Daughter's Account",
+     d:"Kavya is likely in the 0% LTCG bracket in 2026 (low income year). Any appreciated positions in her accounts can be sold and immediately repurchased — resetting cost basis to today's prices at $0 federal tax."},
+    {p:'🟡 Medium', t:'STT Vest → Immediate Sale into VOO',
+     d:'Each RSU vest is ordinary income at vest price. Immediately selling and buying VOO resets concentration risk and swaps future appreciation from single-stock to S&P 500 growth.'},
+    {p:'🟡 Medium', t:'Max 2026 IRA Contributions',
+     d:'Contribute $7,000/person (or $8,000 if 50+). With a $3.45M IRA already, additional contributions compound tax-deferred. At 7% growth, $8K/yr compounds to ~$430K over 20 years.'},
+    {p:'🟢 Low',    t:'T-Bills vs. Bank Savings (NJ Tax Benefit)',
+     d:'$1.78M in Marcus/Affinity cash. T-bill interest is exempt from NJ state income tax (6.37%). At 5.2% vs. 2% savings: incremental $2,100/yr in NJ tax savings plus $57K more in interest income.'}
+  ];
+  $('tax-recs').innerHTML = recs.map(r=>`
+    <div style="padding:11px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px">${r.p}</span>
+        <strong style="font-size:12.5px">${r.t}</strong>
+      </div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">${r.d}</div>
+    </div>`).join('');
+}
+
+function renderTaxTable(total) {
+  const sorted = [...S.tax].filter(r=>(r[2]||0)>0).sort((a,b)=>b[2]-a[2]);
+  $('tb-tax').innerHTML = sorted.map(r=>{
+    const pct=(r[2]/total)*100;
+    const cls=r[3]==='Taxable'?'bdg-red':r[3]==='Tax-Deferred'?'bdg-blue':'bdg-sage';
+    return `<tr>
+      <td class="txt">${r[0]}</td>
+      <td class="txt">${(r[1]||'').replace(/Ending in /,'···')}</td>
+      <td class="txt">${r[4]||'—'}</td>
+      <td><span class="bdg ${cls}">${(r[3]||'').replace('Tax-Free / Tax-Advantaged','Tax-Free')}</span></td>
+      <td class="r">${f$(r[2])}</td>
+      <td class="r">${fp(pct)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// IMPORT / EXPORT
+// =============================================
+function handleDrop(e) {
+  e.preventDefault();
+  $('drop-zone').classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file) parseXlsx(file);
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) parseXlsx(file);
+}
+
+function parseXlsx(file) {
+  const msg = $('import-msg');
+  msg.innerHTML = '⏳ Reading file…';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'binary'});
+      let h=[], t=[], x=[];
+
+      if (wb.SheetNames.includes('Holdings')) {
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets['Holdings']);
+        h = raw.filter(r=>(r.Value||0)>0).map(r=>[
+          String(r.Ticker||''), String(r.Holding||'').substring(0,40),
+          parseFloat(r.Shares||0), parseFloat(r.Price||0),
+          parseFloat(r.Change||0), parseFloat(r['1 Day $']||0), parseFloat(r.Value||0)
+        ]);
+      }
+      if (wb.SheetNames.includes('Top_Holdings')) {
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets['Top_Holdings']);
+        t = raw.filter(r=>r.Value>0).map(r=>[
+          parseInt(r.Rank||0), String(r.Ticker||''), String(r.Holding||'').substring(0,45),
+          parseFloat(r.Value||0), parseFloat(r['Portfolio Weight']||0), parseFloat(r['1 Day $']||0)
+        ]);
+      }
+      if (wb.SheetNames.includes('Tax_Buckets')) {
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets['Tax_Buckets'], {header:1});
+        x = raw.slice(3).map(r=>([
+          String(r[0]||'').substring(0,30), String(r[1]||'').substring(0,45),
+          parseFloat(r[2]||0), String(r[3]||''), String(r[4]||'')
+        ])).filter(r=>r[2]>0);
+      }
+
+      if (h.length > 0) {
+        S.holdings=h; S.topH=t; S.tax=x; S.custom=[];
+        persist(); renderAll();
+        msg.innerHTML = `<span style="color:var(--sage)">✅ Loaded ${h.length} holdings from <strong>${file.name}</strong></span>`;
+      } else {
+        msg.innerHTML = '<span style="color:var(--amber)">⚠ No holdings found — ensure file is an Empower export with Holdings sheet.</span>';
+      }
+    } catch(err) {
+      msg.innerHTML = `<span style="color:var(--red)">✗ Error: ${err.message}</span>`;
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function exportJSON() {
+  const out = {exported:new Date().toISOString(),holdings:S.holdings,topHoldings:S.topH,taxBuckets:S.tax,overview:{totalAssets:15875656,cash:1778501,investments:totalVal(),otherAssets:2356300}};
+  const blob = new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wealthos_portfolio_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function addManual() {
+  const tkr = $('m-tkr').value.trim().toUpperCase();
+  const shr = parseFloat($('m-shr').value);
+  const prc = parseFloat($('m-prc').value);
+  const nm  = $('m-nm').value.trim() || tkr;
+  if (!tkr||!shr||!prc) { $('manual-msg').textContent='Fill ticker, shares and price.'; return; }
+  const val = shr*prc;
+  S.holdings.push([tkr,nm.substring(0,40),shr,prc,0,0,val]);
+  persist(); renderPortfolio(); renderRisk();
+  $('manual-msg').textContent = `✅ Added ${tkr} — ${shr} shares @ $${prc} = ${f$(val)}`;
+  ['m-tkr','m-shr','m-prc','m-nm'].forEach(id=>$(id).value='');
+}
+
+// =============================================
+// BOOT
+// =============================================
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
