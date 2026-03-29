@@ -22,6 +22,11 @@ export const api = {
     return fetch(BASE+'/import/excel', { method:'POST', body:fd }).then(r=>r.json());
   },
   chatAdvisor: (message, history = []) => post('/advisor/chat', { message, history }),
+  getRebalanceTargets: () => get('/rebalance/targets'),
+  setRebalanceTarget:  (t) => post('/rebalance/targets', t),
+  deleteRebalanceTarget: (ticker) => del(`/rebalance/targets/${ticker}`),
+  getRebalancePlan:    () => get('/rebalance/plan'),
+  executeRebalance:    () => post('/rebalance/execute', {}),
 };
 
 export const fmt = {

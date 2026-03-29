@@ -1,7 +1,8 @@
-const express   = require('express');
-const router    = express.Router();
-const db        = require('../db');
-const Anthropic = require('@anthropic-ai/sdk');
+const express      = require('express');
+const router       = express.Router();
+const db           = require('../db');
+const Anthropic    = require('@anthropic-ai/sdk');
+const CAPABILITIES = require('../capabilities');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -103,6 +104,35 @@ const TOOLS = [
       required: ['institution', 'account_name'],
     },
   },
+  {
+    name: 'set_target_allocation',
+    description: 'Set or update the target percentage for a single ticker in the rebalancing plan.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticker:      { type: 'string', description: 'Ticker symbol, e.g. JEPQ' },
+        target_pct:  { type: 'number', description: 'Target allocation as a percentage, e.g. 10.0 for 10%' },
+        asset_class: { type: 'string', description: 'Asset class label, e.g. Equity, Bond, Alternatives, Cash', default: 'Equity' },
+      },
+      required: ['ticker', 'target_pct'],
+    },
+  },
+  {
+    name: 'compute_rebalance_plan',
+    description: 'Compute the rebalancing plan: compares current holdings vs saved target allocations and returns trades (BUY/SELL) needed to reach targets.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'execute_rebalance_trades',
+    description: 'Execute the rebalancing plan by updating share counts in the portfolio to match target allocations.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // ─── Tool executor ────────────────────────────────────────────────────────────
@@ -156,6 +186,80 @@ async function executeTool(name, input) {
       if (rowCount === 0) return { ok: false, action: 'delete_account', summary: `No account found for "${institution} / ${account_name}"` };
       return { ok: true, action: 'delete_account', summary: `Removed account "${account_name}" at ${institution}` };
     }
+    case 'set_target_allocation': {
+      const { ticker, target_pct, asset_class = 'Equity' } = input;
+      const pct = parseFloat(target_pct);
+      if (isNaN(pct) || pct < 0 || pct > 100)
+        return { ok: false, action: 'set_target_allocation', summary: `Invalid target_pct: ${target_pct}` };
+      await db.query(
+        `INSERT INTO target_allocations (ticker, target_pct, asset_class)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (ticker) DO UPDATE
+           SET target_pct = EXCLUDED.target_pct,
+               asset_class = EXCLUDED.asset_class,
+               updated_at = NOW()`,
+        [ticker.toUpperCase(), pct, asset_class]
+      );
+      return { ok: true, action: 'set_target_allocation', summary: `Set target for ${ticker.toUpperCase()} to ${pct}% (${asset_class})` };
+    }
+    case 'compute_rebalance_plan': {
+      const [holdingsRes, targetsRes, totalRes] = await Promise.all([
+        db.query('SELECT ticker, shares, price, value FROM holdings'),
+        db.query('SELECT ticker, target_pct, asset_class FROM target_allocations'),
+        db.query('SELECT SUM(value) AS total FROM holdings'),
+      ]);
+      const totalValue  = parseFloat(totalRes.rows[0]?.total || 0);
+      const holdingsMap = Object.fromEntries(holdingsRes.rows.map(h => [h.ticker.toUpperCase(), h]));
+      const trades = targetsRes.rows.map(t => {
+        const holding    = holdingsMap[t.ticker.toUpperCase()];
+        const targetPct  = parseFloat(t.target_pct);
+        const targetVal  = (targetPct / 100) * totalValue;
+        const currentVal = holding ? parseFloat(holding.value) : 0;
+        const currentPct = totalValue > 0 ? (currentVal / totalValue) * 100 : 0;
+        const deltaValue = targetVal - currentVal;
+        const price      = holding ? parseFloat(holding.price) : null;
+        const deltaShares = price && price > 0 ? (deltaValue / price).toFixed(2) : null;
+        return {
+          ticker: t.ticker.toUpperCase(),
+          current_pct: parseFloat(currentPct.toFixed(2)),
+          target_pct: targetPct,
+          delta_value: parseFloat(deltaValue.toFixed(2)),
+          delta_shares: deltaShares,
+          action: Math.abs(deltaValue) < 100 ? 'HOLD' : deltaValue > 0 ? 'BUY' : 'SELL',
+        };
+      });
+      const totalTargetPct = targetsRes.rows.reduce((s, t) => s + parseFloat(t.target_pct), 0);
+      const summary = trades.map(t =>
+        `${t.ticker}: ${t.action} (${t.current_pct}% → ${t.target_pct}%, delta $${t.delta_value.toLocaleString()}, ${t.delta_shares ?? 'N/A'} shares)`
+      ).join('\n');
+      return { ok: true, action: 'compute_rebalance_plan', trades, totalTargetPct: parseFloat(totalTargetPct.toFixed(2)), summary: `Rebalance plan (${trades.length} positions, total target ${totalTargetPct.toFixed(1)}%):\n${summary}` };
+    }
+    case 'execute_rebalance_trades': {
+      const [holdingsRes, targetsRes, totalRes] = await Promise.all([
+        db.query('SELECT ticker, shares, price, value FROM holdings'),
+        db.query('SELECT ticker, target_pct FROM target_allocations'),
+        db.query('SELECT SUM(value) AS total FROM holdings'),
+      ]);
+      const totalValue  = parseFloat(totalRes.rows[0]?.total || 0);
+      const holdingsMap = Object.fromEntries(holdingsRes.rows.map(h => [h.ticker.toUpperCase(), h]));
+      const applied = [], skipped = [];
+      for (const t of targetsRes.rows) {
+        const ticker    = t.ticker.toUpperCase();
+        const holding   = holdingsMap[ticker];
+        if (!holding) { skipped.push(ticker); continue; }
+        const targetVal  = (parseFloat(t.target_pct) / 100) * totalValue;
+        const price      = parseFloat(holding.price);
+        if (price <= 0) { skipped.push(ticker); continue; }
+        const newShares  = targetVal / price;
+        const newValue   = newShares * price;
+        await db.query(
+          'UPDATE holdings SET shares = $1, value = $2 WHERE UPPER(ticker) = $3',
+          [parseFloat(newShares.toFixed(4)), parseFloat(newValue.toFixed(2)), ticker]
+        );
+        applied.push(ticker);
+      }
+      return { ok: true, action: 'execute_rebalance_trades', summary: `Executed rebalance: updated ${applied.length} positions (${applied.join(', ')}). Skipped: ${skipped.join(', ') || 'none'}.` };
+    }
     default:
       return { ok: false, summary: `Unknown tool: ${name}` };
   }
@@ -167,7 +271,10 @@ const SYSTEM_PROMPT = `You are WealthOS AI Advisor — a sophisticated personal 
 When the user asks you to add, remove, or update holdings or accounts, use the appropriate tool to make the change immediately. Confirm what you did after the action.
 When the user asks for advice, analysis, or questions, answer directly without using tools.
 Be specific — reference actual tickers and dollar amounts from the portfolio context.
-Always consider tax efficiency across Taxable, Tax-Deferred (IRA/401k), and Tax-Free (529/Roth) buckets.`;
+Always consider tax efficiency across Taxable, Tax-Deferred (IRA/401k), and Tax-Free (529/Roth) buckets.
+
+${CAPABILITIES.toSystemPromptSection()}`;
+
 
 // ─── Chat endpoint ────────────────────────────────────────────────────────────
 /**
@@ -231,6 +338,18 @@ router.post('/chat', async (req, res) => {
     console.error('Advisor error:', err.message);
     res.status(500).json({ error: 'AI service unavailable. Check ANTHROPIC_API_KEY.' });
   }
+});
+
+// ─── Capabilities endpoint ────────────────────────────────────────────────────
+/**
+ * GET /api/advisor/capabilities
+ * Returns the structured can/cannot-do lists for the frontend to display.
+ */
+router.get('/capabilities', (req, res) => {
+  res.json({
+    canDo:    CAPABILITIES.canDo,
+    cannotDo: CAPABILITIES.cannotDo,
+  });
 });
 
 module.exports = router;

@@ -8,6 +8,7 @@ const stressRoutes    = require('./routes/stress');
 const importRoutes    = require('./routes/import');
 const accountsRoutes  = require('./routes/accounts');
 const advisorRoutes   = require('./routes/advisor');
+const rebalanceRoutes = require('./routes/rebalance');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,7 @@ app.use('/api/stress',    stressRoutes);
 app.use('/api/import',    importRoutes);
 app.use('/api/accounts',  accountsRoutes);
 app.use('/api/advisor',   advisorRoutes);
+app.use('/api/rebalance', rebalanceRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 

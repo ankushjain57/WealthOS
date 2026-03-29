@@ -8,6 +8,7 @@ import Accounts   from './components/Accounts';
 import TaxBuckets from './components/TaxBuckets';
 import ImportPage from './components/ImportPage';
 import Advisor    from './components/Advisor';
+import Rebalance  from './components/Rebalance';
 
 const TABS = [
   { id:'dashboard', label:'Dashboard' },
@@ -15,6 +16,7 @@ const TABS = [
   { id:'risk',      label:'Risk & Volatility' },
   { id:'stress',    label:'Stress Testing' },
   { id:'advisor',   label:'AI Advisor' },
+  { id:'rebalance', label:'Rebalance' },
   { id:'accounts',  label:'Accounts' },
   { id:'tax',       label:'Tax Buckets' },
   { id:'import',    label:'Import / Export' },
@@ -29,6 +31,7 @@ export default function App() {
     risk:      <Risk />,
     stress:    <Stress />,
     advisor:   <Advisor />,
+    rebalance: <Rebalance />,
     accounts:  <Accounts />,
     tax:       <TaxBuckets />,
     import:    <ImportPage onImport={() => setTab('dashboard')} />,
