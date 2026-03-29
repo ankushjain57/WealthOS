@@ -20,7 +20,8 @@ export const api = {
   importExcel: (file) => {
     const fd = new FormData(); fd.append('file', file);
     return fetch(BASE+'/import/excel', { method:'POST', body:fd }).then(r=>r.json());
-  }
+  },
+  chatAdvisor: (message, history = []) => post('/advisor/chat', { message, history }),
 };
 
 export const fmt = {

@@ -7,6 +7,7 @@ const analyticsRoutes = require('./routes/analytics');
 const stressRoutes    = require('./routes/stress');
 const importRoutes    = require('./routes/import');
 const accountsRoutes  = require('./routes/accounts');
+const advisorRoutes   = require('./routes/advisor');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/stress',    stressRoutes);
 app.use('/api/import',    importRoutes);
 app.use('/api/accounts',  accountsRoutes);
+app.use('/api/advisor',   advisorRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
