@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   balance      NUMERIC(18,2) NOT NULL,
   tax_bucket   VARCHAR(40)  NOT NULL DEFAULT 'Taxable',
   account_type VARCHAR(60)  NOT NULL DEFAULT '',
+  product_type VARCHAR(60)  NOT NULL DEFAULT '',
   created_at   TIMESTAMPTZ  DEFAULT NOW()
 );
 

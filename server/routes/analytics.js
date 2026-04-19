@@ -6,7 +6,9 @@ const BETA = {
   NVDA:1.9,META:1.6,AMZN:1.4,GOOG:1.2,MSFT:1.15,AAPL:1.1,
   STT:1.3,GS:1.4,JPM:1.1,JEPQ:0.7,JEPI:0.55,
   GLD:-0.05,GLDM:-0.05,SLV:0.05,PFTPX:0.15,GILHX:0.12,
-  BND:-0.2,TLT:-0.25,IXC:1.1,XOM:0.9,VOO:1.0,SPY:1.0,QQQ:1.05,CASH:0
+  BND:-0.2,TLT:-0.25,IXC:1.1,XOM:0.9,VOO:1.0,SPY:1.0,QQQ:1.05,CASH:0,
+  // Equity-indexed annuities: dampened market beta due to 0% floor + cap
+  EIA_AXA:0.40,EIA_PWR:0.35,
 };
 const SECTOR = {
   JEPQ:'Covered-Call ETF',JEPI:'Covered-Call ETF',
@@ -44,9 +46,9 @@ router.get('/sectors', async (req, res) => {
 
 router.get('/concentration', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT ticker, name, value FROM holdings ORDER BY value DESC LIMIT 20');
+    const { rows } = await db.query('SELECT ticker, name, value, change_pct, price FROM holdings ORDER BY value DESC LIMIT 20');
     const total = rows.reduce((s,h) => s+parseFloat(h.value), 0);
-    res.json(rows.map(h => ({ ticker:h.ticker, name:h.name, value:parseFloat(h.value), pct:+((parseFloat(h.value)/total)*100).toFixed(2) })));
+    res.json(rows.map(h => ({ ticker:h.ticker, name:h.name, value:parseFloat(h.value), pct:+((parseFloat(h.value)/total)*100).toFixed(2), change_pct:parseFloat(h.change_pct||0), price:parseFloat(h.price||0) })));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import YodleeConnector from './YodleeConnector';
 
 export default function ImportPage({ onImport }) {
   const [msg,      setMsg]      = useState('');
@@ -18,9 +19,66 @@ export default function ImportPage({ onImport }) {
   }
 
   return (
-    <div>
-      <div className="stitle">Import / Export <small>Empower · Schwab · Fidelity</small></div>
+    <>
+      <div className="stitle">Import / Export <small>Empower · Schwab · Fidelity · Yodlee</small></div>
+
+      <YodleeConnector onImportComplete={() => { setMsg('✅ Yodlee import completed!'); setTimeout(() => onImport && onImport(), 1500); }} />
+
       <div className="g2">
+        <div className="card">
+          <div className="card-title">Export Portfolio Data</div>
+          <div style={{ padding: '20px 0' }}>
+            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
+              Download your complete portfolio data including all holdings and accounts.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => api.exportCSV()}
+                style={{ flex: 1 }}
+              >
+                📊 Download CSV
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => api.exportExcel()}
+                style={{ flex: 1 }}
+              >
+                📈 Download Excel
+              </button>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
+              Files include: Holdings (ticker, name, shares, price, value) and Accounts (balances, tax buckets)
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Import Portfolio from Excel</div>
+          <div style={{ padding: '20px 0' }}>
+            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
+              Download your complete portfolio data including all holdings and accounts.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => api.exportCSV()}
+                style={{ flex: 1 }}
+              >
+                📊 Download CSV
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => api.exportExcel()}
+                style={{ flex: 1 }}
+              >
+                📈 Download Excel
+              </button>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
+              Files include: Holdings (ticker, name, shares, price, value) and Accounts (balances, tax buckets)
+            </div>
+          </div>
+        </div>
         <div className="card">
           <div className="card-title">Import Portfolio from Excel</div>
           <div className={`drop-zone ${dragging?'over':''}`} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);}} onClick={()=>document.getElementById('file-inp').click()}>
@@ -39,6 +97,6 @@ export default function ImportPage({ onImport }) {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

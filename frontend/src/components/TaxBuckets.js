@@ -6,6 +6,7 @@ export default function TaxBuckets() {
   const [buckets,  setBuckets]  = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading,  setLoading]  = useState(true);
+  const [sort, setSort] = useState({ col: 'balance', dir: 'desc' });
 
   useEffect(() => {
     Promise.all([api.getBuckets(), api.getAccounts()])
@@ -24,6 +25,36 @@ export default function TaxBuckets() {
   ];
   const bucketBadge = {'Taxable':'bdg-red','Tax-Deferred':'bdg-blue','Tax-Free / Tax-Advantaged':'bdg-sage'};
 
+  const toggleSort = (col) => {
+    setSort(prev => ({ col, dir: prev.col === col && prev.dir === 'desc' ? 'asc' : 'desc' }));
+  };
+
+  const SortTh = ({ col, label, align }) => {
+    const active = sort.col === col;
+    return (
+      <th
+        className={align === 'r' ? 'r' : ''}
+        style={{ cursor:'pointer', userSelect:'none', whiteSpace:'nowrap' }}
+        onClick={() => toggleSort(col)}
+      >
+        {label}{' '}
+        <span style={{ opacity: active ? 1 : 0.25, fontSize: 9 }}>
+          {active ? (sort.dir === 'asc' ? '▲' : '▼') : '▾'}
+        </span>
+      </th>
+    );
+  };
+
+  const sortedAccounts = accounts
+    .filter(a=>parseFloat(a.balance)>0)
+    .sort((a, b) => {
+      const dir = sort.dir === 'asc' ? 1 : -1;
+      const av = sort.col === 'balance' ? parseFloat(a.balance) : (a[sort.col] || '');
+      const bv = sort.col === 'balance' ? parseFloat(b.balance) : (b[sort.col] || '');
+      if (sort.col === 'balance') return dir * (av - bv);
+      return dir * String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
   return (
     <div>
       <div className="stitle">Tax Buckets <small>Asset location analysis</small></div>
@@ -39,8 +70,8 @@ export default function TaxBuckets() {
       </div>
       <div className="card">
         <div className="card-title">Account-Level Tax Breakdown</div>
-        <div className="tbl-wrap"><table><thead><tr><th>Institution</th><th>Account</th><th>Type</th><th>Bucket</th><th className="r">Balance</th><th className="r">%</th></tr></thead>
-        <tbody>{accounts.filter(a=>parseFloat(a.balance)>0).sort((a,b)=>b.balance-a.balance).map(a=><tr key={a.id}><td className="txt">{a.institution}</td><td className="txt">{a.account_name.replace(/Ending in /g,'···')}</td><td className="txt">{a.account_type}</td><td><span className={`bdg ${bucketBadge[a.tax_bucket]||'bdg-gold'}`}>{a.tax_bucket.replace('Tax-Free / Tax-Advantaged','Tax-Free')}</span></td><td className="r">{fmt.dollar(a.balance)}</td><td className="r">{fmt.pct(parseFloat(a.balance)/total*100)}</td></tr>)}</tbody></table></div>
+        <div className="tbl-wrap"><table><thead><tr><SortTh col="institution" label="Institution" /><SortTh col="account_name" label="Account" /><SortTh col="account_type" label="Type" /><SortTh col="tax_bucket" label="Bucket" /><SortTh col="balance" label="Balance" align="r" /><th className="r">%</th></tr></thead>
+        <tbody>{sortedAccounts.map(a=><tr key={a.id}><td className="txt">{a.institution}</td><td className="txt">{a.account_name.replace(/Ending in /g,'···')}</td><td className="txt">{a.account_type}</td><td><span className={`bdg ${bucketBadge[a.tax_bucket]||'bdg-gold'}`}>{a.tax_bucket.replace('Tax-Free / Tax-Advantaged','Tax-Free')}</span></td><td className="r">{fmt.dollar(a.balance)}</td><td className="r">{fmt.pct(parseFloat(a.balance)/total*100)}</td></tr>)}</tbody></table></div>
       </div>
     </div>
   );

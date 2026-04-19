@@ -13,8 +13,15 @@ const BOND   = new Set(['PFTPX','GILHX','BND','AGG','TLT','IEF']);
 const GOLD   = new Set(['GLD','GLDM','SLV','IAU','FNV']);
 const ENERGY = new Set(['XOM','CVX','IXC','ENB','LNG','TTE']);
 const CASH   = new Set(['CASH','VMFXX','SPAXX']);
+// Equity-indexed annuities: 0% floor in equity downturns; slight drag from rate spikes
+const EIA    = new Set(['EIA_AXA','EIA_PWR']);
 
 function shock(ticker, d) {
+  if (EIA.has(ticker)) {
+    // Floor protects principal in equity declines; rate spikes suppress future crediting
+    if (d.bd < 0) return d.bd * 0.15;  // rate spike: small pass-through (~15% of bond shock)
+    return Math.max(0, d.eq * 0.35);   // equity upside: partial participation; 0% floor on down
+  }
   if (BOND.has(ticker))   return d.bd;
   if (GOLD.has(ticker))   return d.gd;
   if (ENERGY.has(ticker)) return d.en;

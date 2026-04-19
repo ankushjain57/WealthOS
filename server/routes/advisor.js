@@ -3,6 +3,8 @@ const router       = express.Router();
 const db           = require('../db');
 const Anthropic    = require('@anthropic-ai/sdk');
 const CAPABILITIES = require('../capabilities');
+const YahooFinance = require('yahoo-finance2').default;
+const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -102,6 +104,35 @@ const TOOLS = [
         account_name: { type: 'string' },
       },
       required: ['institution', 'account_name'],
+    },
+  },
+  {
+    name: 'search_financial_news',
+    description: 'Search Yahoo Finance for recent news, analyst commentary, and market coverage about specific stocks, ETFs, sectors, or financial themes. Use this proactively when the user asks about portfolio risk, opportunities, specific holdings, or market conditions — BEFORE giving a recommendation.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Financial news search query. Be specific: include ticker symbols and the theme, e.g. "STT State Street 2026 outlook" or "covered call ETF JEPQ tax drag" or "S&P 500 April 2026 correction risk"',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_market_data',
+    description: 'Fetch live market data for one or more tickers: current price, daily change, P/E ratio, analyst price target, 52-week range, dividend yield, and market cap. Use this to provide real-time valuation context when discussing specific holdings.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        tickers: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of ticker symbols to fetch live data for, e.g. ["STT", "JEPQ", "VOO", "BTC-USD"]',
+        },
+      },
+      required: ['tickers'],
     },
   },
   {
@@ -260,18 +291,93 @@ async function executeTool(name, input) {
       }
       return { ok: true, action: 'execute_rebalance_trades', summary: `Executed rebalance: updated ${applied.length} positions (${applied.join(', ')}). Skipped: ${skipped.join(', ') || 'none'}.` };
     }
+    case 'search_financial_news': {
+      const { query } = input;
+      try {
+        const result = await yf.search(query, { newsCount: 8, quotesCount: 0 }, { validateResult: false });
+        const news = (result.news || []).slice(0, 8).map(n => ({
+          title:     n.title,
+          publisher: n.publisher,
+          link:      n.link,
+          published: n.providerPublishTime
+            ? new Date(n.providerPublishTime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'Recent',
+        }));
+        const summary = news.length
+          ? `Found ${news.length} articles for "${query}":\n` + news.map(n => `• "${n.title}" — ${n.publisher} (${n.published})\n  ${n.link}`).join('\n')
+          : `No news found for "${query}" — try a broader search term.`;
+        return { ok: true, action: 'search_financial_news', news, query, summary };
+      } catch (err) {
+        return { ok: false, action: 'search_financial_news', news: [], query, summary: `News search failed: ${err.message}` };
+      }
+    }
+    case 'get_market_data': {
+      const { tickers } = input;
+      const safeTickers = (tickers || []).slice(0, 10).map(t => t.trim().toUpperCase());
+      try {
+        const results = await Promise.allSettled(
+          safeTickers.map(t => yf.quote(t, {}, { validateResult: false }))
+        );
+        const data = [];
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled' && r.value && r.value.regularMarketPrice != null) {
+            const q = r.value;
+            data.push({
+              ticker:         safeTickers[i],
+              name:           q.shortName || q.longName || safeTickers[i],
+              price:          q.regularMarketPrice,
+              change_pct:     q.regularMarketChangePercent != null ? +q.regularMarketChangePercent.toFixed(2) : null,
+              market_cap:     q.marketCap || null,
+              pe_ratio:       q.trailingPE != null ? +q.trailingPE.toFixed(1) : null,
+              week52_high:    q.fiftyTwoWeekHigh || null,
+              week52_low:     q.fiftyTwoWeekLow  || null,
+              analyst_target: q.targetMeanPrice != null ? +q.targetMeanPrice.toFixed(2) : null,
+              dividend_yield: q.trailingAnnualDividendYield != null ? +(q.trailingAnnualDividendYield * 100).toFixed(2) : null,
+              volume:         q.regularMarketVolume || null,
+            });
+          }
+        });
+        const fmtCap = v => !v ? 'N/A' : v >= 1e12 ? `$${(v/1e12).toFixed(1)}T` : v >= 1e9 ? `$${(v/1e9).toFixed(1)}B` : `$${(v/1e6).toFixed(0)}M`;
+        const summary = `Live market data (${data.length} tickers):\n` + data.map(d =>
+          `${d.ticker} (${d.name}): $${d.price} (${d.change_pct != null ? (d.change_pct >= 0 ? '+' : '') + d.change_pct + '%' : 'N/A'}) | P/E: ${d.pe_ratio ?? 'N/A'} | 52w: $${d.week52_low ?? '?'}–$${d.week52_high ?? '?'} | Target: $${d.analyst_target ?? 'N/A'} | Yield: ${d.dividend_yield ?? '0'}% | Cap: ${fmtCap(d.market_cap)}`
+        ).join('\n');
+        return { ok: true, action: 'get_market_data', data, summary };
+      } catch (err) {
+        return { ok: false, action: 'get_market_data', data: [], summary: `Market data fetch failed: ${err.message}` };
+      }
+    }
     default:
       return { ok: false, summary: `Unknown tool: ${name}` };
   }
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are WealthOS AI Advisor — a sophisticated personal wealth and tax advisor with live read/write access to the user's portfolio database.
+const SYSTEM_PROMPT = `You are WealthOS AI Advisor — a sophisticated personal wealth and tax advisor with live read/write access to the user's portfolio AND real-time access to financial news and live market data.
 
-When the user asks you to add, remove, or update holdings or accounts, use the appropriate tool to make the change immediately. Confirm what you did after the action.
-When the user asks for advice, analysis, or questions, answer directly without using tools.
-Be specific — reference actual tickers and dollar amounts from the portfolio context.
-Always consider tax efficiency across Taxable, Tax-Deferred (IRA/401k), and Tax-Free (529/Roth) buckets.
+## Research-First Approach
+For ANY question about portfolio risk, opportunities, specific holdings, or market conditions — ALWAYS:
+1. Use search_financial_news to find recent relevant news (1–2 targeted searches)
+2. Use get_market_data to get live prices, P/E ratios, and analyst targets for the relevant tickers
+3. Then synthesize the live data + news with portfolio context into your recommendation
+4. Always cite your sources inline: mention the publisher and headline for key claims
+
+## When to search proactively (do this before answering)
+- User asks about risk or drawdown → search news for their top holdings, then fetch live market data
+- User asks about a specific holding → search news about that ticker + get its live market data
+- User asks about market conditions → search for current macro/sector news
+- User asks about tax strategy → search for recent tax law updates relevant to their holdings
+- User asks about an ETF or fund → search for recent analyst commentary and fund flows
+- User asks about deploying cash → search for current T-bill/CD/money market rates
+
+## Portfolio Actions (no news search needed)
+When the user asks to add, remove, or update holdings or accounts, use the appropriate database tool immediately. Confirm what you did after.
+
+## Style Guidelines
+- Reference actual ticker symbols and dollar amounts from the portfolio context
+- After citing news, explain what it means specifically for this portfolio
+- Always consider tax efficiency: Taxable vs Tax-Deferred (IRA/401k) vs Tax-Free (529/Roth)
+- Cite news inline as: [Publisher — "Headline"]
+- Format monetory figures with commas and dollar signs
 
 ${CAPABILITIES.toSystemPromptSection()}`;
 

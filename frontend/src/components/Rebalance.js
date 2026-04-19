@@ -13,6 +13,7 @@ export default function Rebalance() {
   const [error,   setError]   = useState(null);
   const [executing, setExecuting] = useState(false);
   const [execResult, setExecResult] = useState(null);
+  const [planSort, setPlanSort] = useState({ col: 'delta_value', dir: 'desc' });
 
   // Add-target form
   const [form, setForm] = useState({ ticker: '', target_pct: '', asset_class: 'Equity' });
@@ -62,6 +63,39 @@ export default function Rebalance() {
   const trades  = plan?.trades ?? [];
   const buyCount  = trades.filter(t => t.action === 'BUY').length;
   const sellCount = trades.filter(t => t.action === 'SELL').length;
+
+  function togglePlanSort(col) {
+    setPlanSort(prev => ({ col, dir: prev.col === col && prev.dir === 'desc' ? 'asc' : 'desc' }));
+  }
+
+  const sortedTrades = [...trades].sort((a, b) => {
+    const dir = planSort.dir === 'asc' ? 1 : -1;
+    const getVal = (row) => {
+      if (planSort.col === 'ticker' || planSort.col === 'asset_class' || planSort.col === 'action') return row[planSort.col] || '';
+      return parseFloat(row[planSort.col]) || 0;
+    };
+    const av = getVal(a);
+    const bv = getVal(b);
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return dir * String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    }
+    return dir * (av - bv);
+  });
+
+  const SortTh = ({ col, label, align = 'left' }) => {
+    const active = planSort.col === col;
+    return (
+      <th
+        style={{ padding: '0.4rem 0.5rem', textAlign: align, cursor: 'pointer', userSelect: 'none', whiteSpace:'nowrap' }}
+        onClick={() => togglePlanSort(col)}
+      >
+        {label}{' '}
+        <span style={{ opacity: active ? 1 : 0.25, fontSize: 9 }}>
+          {active ? (planSort.dir === 'asc' ? '▲' : '▼') : '▾'}
+        </span>
+      </th>
+    );
+  };
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
@@ -177,17 +211,19 @@ export default function Rebalance() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
-                    <th style={{ padding: '0.4rem 0.75rem 0.4rem 0' }}>Ticker</th>
-                    <th style={{ padding: '0.4rem 0.5rem' }}>Asset Class</th>
-                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>Current</th>
-                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>Target</th>
-                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>Delta ($)</th>
-                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>Delta Shares</th>
-                    <th style={{ padding: '0.4rem 0.5rem', textAlign: 'center' }}>Action</th>
+                    <th style={{ padding: '0.4rem 0.75rem 0.4rem 0', cursor:'pointer', userSelect:'none', whiteSpace:'nowrap' }} onClick={() => togglePlanSort('ticker')}>
+                      Ticker <span style={{ opacity: planSort.col === 'ticker' ? 1 : 0.25, fontSize: 9 }}>{planSort.col === 'ticker' ? (planSort.dir === 'asc' ? '▲' : '▼') : '▾'}</span>
+                    </th>
+                    <SortTh col="asset_class" label="Asset Class" />
+                    <SortTh col="current_value" label="Current" align="right" />
+                    <SortTh col="target_value" label="Target" align="right" />
+                    <SortTh col="delta_value" label="Delta ($)" align="right" />
+                    <SortTh col="delta_shares" label="Delta Shares" align="right" />
+                    <SortTh col="action" label="Action" align="center" />
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map(t => (
+                  {sortedTrades.map(t => (
                     <tr key={t.ticker} style={{ borderBottom: '1px solid #f1f5f9', background: ACTION_BG[t.action] }}>
                       <td style={{ padding: '0.5rem 0.75rem 0.5rem 0', fontWeight: 700 }}>{t.ticker}</td>
                       <td style={{ padding: '0.5rem', color: '#64748b' }}>{t.asset_class}</td>

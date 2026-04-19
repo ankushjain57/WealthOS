@@ -14,6 +14,8 @@ const CAPABILITIES = {
     { action: 'set_target_allocation',   description: 'Set a target allocation percentage for a ticker (for rebalancing)' },
     { action: 'compute_rebalance_plan',  description: 'Compute a rebalancing plan showing BUY/SELL trades to reach target allocations' },
     { action: 'execute_rebalance_trades', description: 'Execute the rebalancing plan, updating share counts to match targets' },
+    { action: 'search_financial_news',   description: 'Search Yahoo Finance for real-time news and analyst commentary on any ticker or market theme' },
+    { action: 'get_market_data',         description: 'Fetch live price, P/E, analyst target, 52-week range, and dividend yield for any ticker' },
   ],
 
   cannotDo: [

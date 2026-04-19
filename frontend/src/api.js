@@ -8,6 +8,9 @@ export const api = {
   getSummary:       () => get('/portfolio/summary'),
   addHolding:       (h) => post('/portfolio/holdings', h),
   deleteHolding:    (id) => del(`/portfolio/holdings/${id}`),
+  updateHolding:    (id, h) => {
+    return fetch('/api/portfolio/holdings/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(h) }).then(r=>r.json());
+  },
   getMetrics:       () => get('/analytics/metrics'),
   getSectors:       () => get('/analytics/sectors'),
   getConcentration: () => get('/analytics/concentration'),
@@ -16,6 +19,13 @@ export const api = {
   getAccounts:      () => get('/accounts'),
   getBuckets:       () => get('/accounts/buckets'),
   addAccount:       (a) => post('/accounts', a),
+  updateAccount:    (id, a) => {
+    return fetch('/api/accounts/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(a)
+    }).then(r => r.json());
+  },
   deleteAccount:    (id) => del(`/accounts/${id}`),
   importExcel: (file) => {
     const fd = new FormData(); fd.append('file', file);
@@ -27,6 +37,19 @@ export const api = {
   deleteRebalanceTarget: (ticker) => del(`/rebalance/targets/${ticker}`),
   getRebalancePlan:    () => get('/rebalance/plan'),
   executeRebalance:    () => post('/rebalance/execute', {}),
+  getQuotes:           (tickers) => get(`/prices/quotes?tickers=${tickers.join(',')}`),
+  refreshPrices:       () => post('/prices/refresh', {}),
+  getIndexes:          () => get('/prices/indexes'),
+  getFutures:          () => get('/prices/futures'),
+  getBarra:            () => get('/risk/barra'),
+  refreshBarra:        () => post('/risk/barra/refresh', {}),
+  yodleeConnect:        (body) => post('/yodlee/connect', body || {}),
+  yodleeGetAccounts:    (loginName) => get(`/yodlee/accounts/${loginName}`),
+  yodleeGetHoldings:    (loginName) => get(`/yodlee/holdings/${loginName}`),
+  yodleeImportHoldings: (loginName, clearExisting) => post(`/yodlee/import/${loginName}`, { clearExisting }),
+  yodleeImportDirect:   () => post('/yodlee/import-direct', {}),
+  exportCSV:           () => { window.open('/api/portfolio/export/csv', '_blank'); },
+  exportExcel:         () => { window.open('/api/portfolio/export/excel', '_blank'); },
 };
 
 export const fmt = {
